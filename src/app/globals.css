@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Identidad Linko: fondo casi negro con tinte violeta, acentos violeta/lavanda
+  (mascota + logotipo), estrella ámbar, lupa teal, corazón rosa/rojo.
+  El tema oscuro es el look de marca por defecto (no un modo alternativo).
+*/
+:root {
+  --background: 258 42% 6%;
+  --foreground: 260 60% 97%;
+  --card: 260 36% 10%;
+  --card-foreground: 260 60% 97%;
+  --popover: 260 36% 9%;
+  --popover-foreground: 260 60% 97%;
+  --primary: 258 92% 71%;
+  --primary-dim: 262 60% 32%;
+  --primary-foreground: 260 60% 98%;
+  --secondary: 260 28% 15%;
+  --secondary-foreground: 260 60% 95%;
+  --muted: 260 24% 14%;
+  --muted-foreground: 258 22% 68%;
+  --accent: 271 76% 66%;
+  --accent-foreground: 260 60% 98%;
+  --destructive: 350 78% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 260 26% 20%;
+  --input: 260 26% 20%;
+  --ring: 258 92% 71%;
+  --success: 165 75% 45%;
+  --success-foreground: 260 60% 6%;
+  --star: 42 96% 58%;
+  --heart: 341 82% 66%;
+  --faint: 258 18% 52%;
+  --card-soft: 260 32% 13%;
+  --primary-soft: 258 60% 71%;
+  --radius: 1rem;
+}
+
+/* Variante clara opcional (toggle futuro) — mantiene el mismo acento violeta sobre papel lavanda claro. */
+.light {
+  --background: 258 45% 97%;
+  --foreground: 260 45% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 260 45% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 260 45% 12%;
+  --primary: 258 80% 58%;
+  --primary-dim: 262 55% 42%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 258 40% 93%;
+  --secondary-foreground: 260 45% 12%;
+  --muted: 258 30% 92%;
+  --muted-foreground: 258 18% 42%;
+  --accent: 271 70% 55%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 350 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 258 25% 87%;
+  --input: 258 25% 87%;
+  --ring: 258 80% 58%;
+  --success: 165 70% 36%;
+  --success-foreground: 0 0% 100%;
+  --star: 38 92% 50%;
+  --heart: 341 75% 55%;
+  --faint: 258 18% 42%;
+  --card-soft: 258 30% 92%;
+  --primary-soft: 258 80% 58%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans), -apple-system, "Segoe UI", sans-serif;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display), Fredoka, sans-serif;
+}
+
+::selection {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
