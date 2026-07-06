@@ -13,7 +13,7 @@ export function Logomark({ className, size = 32 }: { className?: string; size?: 
 export function Wordmark({ className }: { className?: string }) {
   return (
     <span className={cn("font-display text-lg font-semibold tracking-tight text-foreground", className)}>
-      Link<span className="text-primary">o</span> <span className="font-medium text-muted-foreground">Agent</span>
+      Link<span className="text-primary">o</span> Agent
     </span>
   );
 }
