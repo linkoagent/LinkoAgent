@@ -33,13 +33,13 @@ export const metadata: Metadata = {
     siteName: "Linko Agent",
     title,
     description,
-    images: [{ url: "/linko-mascot.png", width: 256, height: 256, alt: "Linko, el agente de IA de Linko Agent" }],
+    images: [{ url: "/apple-touch-icon.png", width: 180, height: 180, alt: "Linko, el agente de IA de Linko Agent" }],
   },
   twitter: {
     card: "summary",
     title,
     description,
-    images: ["/linko-mascot.png"],
+    images: ["/apple-touch-icon.png"],
   },
 };
 
