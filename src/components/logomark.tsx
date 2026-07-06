@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 export function Logomark({ className, size = 32 }: { className?: string; size?: number }) {
   return (
     <div className={cn("relative shrink-0", className)} style={{ width: size, height: size }}>
-      <Image src="/apple-touch-icon.png" alt="Linko" fill sizes="128px" className="object-contain" priority />
+      <Image src="/linko-mascot.png" alt="Linko" fill sizes="128px" className="object-contain" priority />
     </div>
   );
 }
