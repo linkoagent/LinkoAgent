@@ -69,10 +69,15 @@ export function MarketingNav() {
             <Link
               href="/login"
               className="rounded-lg border border-border px-3 py-2 text-center font-display text-[13px] text-foreground"
+              onClick={() => setOpen(false)}
             >
               Iniciar sesión
             </Link>
-            <a href="#contacto" className="rounded-lg bg-brand-button px-3 py-2 text-center font-display text-[13px] text-white">
+            <a
+              href="#contacto"
+              className="rounded-lg bg-brand-button px-3 py-2 text-center font-display text-[13px] text-white"
+              onClick={() => setOpen(false)}
+            >
               Agendar demo
             </a>
           </div>

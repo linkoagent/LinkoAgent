@@ -201,7 +201,7 @@ export const footerLinks = {
     { label: "Preguntas frecuentes", href: "#faq" },
   ],
   legal: [
-    { label: "Política de privacidad", href: "#" },
-    { label: "Términos y condiciones", href: "#" },
+    { label: "Política de privacidad", href: "/privacidad" },
+    { label: "Términos y condiciones", href: "/terminos" },
   ],
 };
