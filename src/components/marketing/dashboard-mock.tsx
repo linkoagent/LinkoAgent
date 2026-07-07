@@ -7,11 +7,7 @@ const kpis = [
 
 const bars = [38, 52, 44, 61, 57, 82, 49, 65, 58, 71, 66, 90, 74, 80];
 
-const channels = [
-  { name: "WhatsApp", pct: 74, color: "bg-success" },
-  { name: "Instagram", pct: 19, color: "bg-primary" },
-  { name: "Messenger", pct: 7, color: "bg-heart" },
-];
+const channels = [{ name: "WhatsApp", pct: 100, color: "bg-success" }];
 
 export function MarketingDashboardMock() {
   return (
