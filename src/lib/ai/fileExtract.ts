@@ -1,11 +1,8 @@
-import "@/lib/ai/pdfPolyfill";
 import mammoth from "mammoth";
 import ExcelJS from "exceljs";
-import { PDFParse } from "pdf-parse";
 import type { KnowledgeSourceType } from "@prisma/client";
 
 const EXTENSION_TYPES: Record<string, KnowledgeSourceType> = {
-  pdf: "PDF",
   docx: "DOCX",
   xlsx: "SPREADSHEET",
   xls: "SPREADSHEET",
@@ -40,23 +37,19 @@ async function extractSpreadsheetText(buffer: Buffer, fileName: string): Promise
   return lines.join("\n");
 }
 
-/** Extrae texto plano de un archivo subido para usarlo como fuente de conocimiento del agente. */
+/**
+ * Extrae texto plano de un archivo subido para usarlo como fuente de conocimiento del agente.
+ * PDF no está soportado a propósito: pdf-parse/pdfjs-dist dependen de globals de navegador
+ * (DOMMatrix/Path2D/ImageData) resueltos vía un paquete con binarios nativos que Vercel no
+ * empaqueta de forma confiable en la función serverless. Mientras tanto, PDF queda afuera.
+ */
 export async function extractTextFromFile(fileName: string, buffer: Buffer): Promise<string> {
   const type = knowledgeTypeForFile(fileName);
   if (!type) {
-    throw new Error(`Formato no soportado: "${fileName}". Usá PDF, Word (.docx), Excel (.xlsx/.xls), CSV o texto (.txt).`);
+    throw new Error(`Formato no soportado: "${fileName}". Usá Word (.docx), Excel (.xlsx/.xls), CSV o texto (.txt).`);
   }
 
   switch (type) {
-    case "PDF": {
-      const parser = new PDFParse({ data: new Uint8Array(buffer) });
-      try {
-        const result = await parser.getText();
-        return result.text.trim();
-      } finally {
-        await parser.destroy();
-      }
-    }
     case "DOCX": {
       const result = await mammoth.extractRawText({ buffer });
       return result.value.trim();

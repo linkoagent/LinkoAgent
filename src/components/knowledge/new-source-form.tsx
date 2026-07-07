@@ -31,8 +31,8 @@ export function NewSourceForm() {
       <div>
         <h3 className="font-display text-sm font-semibold text-foreground">Agregar conocimiento</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Pegá texto abajo, o subí un archivo (PDF, Word, Excel/CSV) — si subís un archivo, se usa su contenido en
-          vez del texto pegado.
+          Pegá texto abajo, o subí un archivo (Word, Excel/CSV o texto) — si subís un archivo, se usa su contenido en
+          vez del texto pegado. PDF todavía no está soportado.
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -63,7 +63,7 @@ export function NewSourceForm() {
           id="file"
           name="file"
           type="file"
-          accept=".pdf,.docx,.xlsx,.xls,.csv,.txt"
+          accept=".docx,.xlsx,.xls,.csv,.txt"
           className="text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-foreground"
         />
       </div>

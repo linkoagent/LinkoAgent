@@ -33,7 +33,7 @@ export const features = [
     body: "Definí su rol, su tono de marca y sus reglas de negocio, y sumale las FAQs y la información de tu empresa. Nuestro equipo te acompaña en la configuración inicial.",
     bullets: [
       "Configuración guiada por el equipo de Linko",
-      "Entrenamiento con FAQs, texto propio, PDF, Word, Excel y CSV",
+      "Entrenamiento con FAQs, texto propio, Word, Excel y CSV",
       "Personalización total del tono de marca",
       "Listo para responder en minutos",
     ],
@@ -115,7 +115,7 @@ export const plansUSD: MarketingPlan[] = [
     features: [
       "Hasta 3 agentes de IA",
       "Hasta 3 canales conectados",
-      "Entrenamiento con documentos propios (PDF, Word, Excel)",
+      "Entrenamiento con documentos propios (Word, Excel)",
       "Derivación a humano",
       "Gestión de leads",
       "Métricas avanzadas y reportes mensuales",
