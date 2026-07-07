@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { WhatsAppConnectForm } from "@/components/channels/whatsapp-connect-form";
 import { ChannelStatusCard } from "@/components/channels/channel-status-card";
 import { SimulateMessageForm } from "@/components/channels/simulate-message-form";
+import { EmbeddedSignupButton } from "@/components/channels/embedded-signup-button";
 
 export default async function ChannelsPage() {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
@@ -18,6 +19,7 @@ export default async function ChannelsPage() {
       </div>
 
       {whatsappChannel && <ChannelStatusCard channel={whatsappChannel} />}
+      <EmbeddedSignupButton />
       <WhatsAppConnectForm channel={whatsappChannel} />
       {whatsappChannel && <SimulateMessageForm channelId={whatsappChannel.id} />}
 

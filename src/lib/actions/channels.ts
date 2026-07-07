@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/tenant";
 import { testWhatsAppConnection } from "@/lib/whatsapp/client";
+import {
+  exchangeEmbeddedSignupCode,
+  subscribeAppToWaba,
+  fetchPhoneNumberDisplayName,
+} from "@/lib/whatsapp/embeddedSignup";
 
 export async function connectWhatsAppChannel(formData: FormData) {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
@@ -46,6 +51,60 @@ export async function connectWhatsAppChannel(formData: FormData) {
   }
 
   revalidatePath("/channels");
+}
+
+export interface EmbeddedSignupResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * Completa la conexión iniciada por el botón de Embedded Signup: intercambia el code por un
+ * access token de negocio, suscribe nuestro webhook al WABA elegido, y guarda el canal como
+ * si lo hubieras cargado a mano en /channels. wabaId/phoneNumberId vienen de los mensajes
+ * postMessage que manda el popup de Meta durante el flujo (no del code en sí).
+ */
+export async function completeEmbeddedSignup(params: {
+  code: string;
+  wabaId?: string;
+  phoneNumberId?: string;
+}): Promise<EmbeddedSignupResult> {
+  const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
+  const { code, wabaId, phoneNumberId } = params;
+
+  if (!wabaId || !phoneNumberId) {
+    return { ok: false, error: "Meta no devolvió el WhatsApp Business Account o el número elegido. Probá de nuevo." };
+  }
+
+  try {
+    const accessToken = await exchangeEmbeddedSignupCode(code);
+    await subscribeAppToWaba(wabaId, accessToken);
+    const accountName = await fetchPhoneNumberDisplayName(phoneNumberId, accessToken);
+
+    const existing = await prisma.channel.findFirst({ where: { companyId: ctx.companyId, type: "WHATSAPP" } });
+    const data = {
+      companyId: ctx.companyId,
+      type: "WHATSAPP" as const,
+      accountName,
+      phoneNumberId,
+      wabaId,
+      accessToken,
+      status: "CONNECTED" as const,
+      connectedAt: new Date(),
+      lastError: null,
+    };
+
+    if (existing) {
+      await prisma.channel.update({ where: { id: existing.id }, data });
+    } else {
+      await prisma.channel.create({ data });
+    }
+
+    revalidatePath("/channels");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Error conectando WhatsApp" };
+  }
 }
 
 export async function disconnectChannel(channelId: string) {

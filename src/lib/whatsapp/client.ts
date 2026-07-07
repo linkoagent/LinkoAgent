@@ -1,6 +1,6 @@
 import type { Channel } from "@prisma/client";
 
-const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_API_VERSION || "v20.0";
+export const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_API_VERSION || "v20.0";
 
 function isMock(channel: Pick<Channel, "accessToken">) {
   return process.env.WHATSAPP_MOCK_MODE === "true" || !channel.accessToken;
@@ -30,6 +30,57 @@ export async function sendWhatsAppMessage(params: { channel: Channel; to: string
   if (!res.ok) {
     const errText = await res.text();
     throw new Error(`WhatsApp send failed (${res.status}): ${errText}`);
+  }
+
+  const data = await res.json();
+  return { ok: true, mocked: false, id: data.messages?.[0]?.id as string | undefined };
+}
+
+export interface WhatsAppTemplateComponent {
+  type: "header" | "body" | "button";
+  parameters: Array<{ type: "text"; text: string }>;
+}
+
+/**
+ * Manda un mensaje de plantilla (fuera de la ventana de 24hs de atención al cliente). Requiere
+ * que la plantilla ya esté creada y aprobada en Meta Business Manager — no hay ninguna plantilla
+ * propia todavía, así que esto queda listo para usarse en cuanto exista un caso de uso real
+ * (por ejemplo recordatorios de turno) y su plantilla correspondiente.
+ */
+export async function sendWhatsAppTemplateMessage(params: {
+  channel: Channel;
+  to: string;
+  templateName: string;
+  languageCode?: string;
+  components?: WhatsAppTemplateComponent[];
+}) {
+  const { channel, to, templateName, languageCode = "es_AR", components } = params;
+
+  if (isMock(channel)) {
+    return { ok: true, mocked: true, id: `mock-template-${Date.now()}` };
+  }
+
+  const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${channel.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${channel.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: {
+        name: templateName,
+        language: { code: languageCode },
+        ...(components ? { components } : {}),
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`WhatsApp template send failed (${res.status}): ${errText}`);
   }
 
   const data = await res.json();
