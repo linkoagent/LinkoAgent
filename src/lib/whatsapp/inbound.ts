@@ -57,17 +57,11 @@ export async function processInboundWhatsAppMessage({
   let overLimit = false;
 
   if (!conversation) {
-    const defaultAgent = await prisma.agent.findFirst({
-      where: { companyId: channel.companyId, isActive: true, channels: { some: { channelId: channel.id } } },
-      orderBy: { createdAt: "asc" },
-    });
-
     conversation = await prisma.conversation.create({
       data: {
         companyId: channel.companyId,
         channelId: channel.id,
         customerId: customer.id,
-        agentId: defaultAgent?.id,
         status: "OPEN",
       },
     });
@@ -103,7 +97,17 @@ export async function processInboundWhatsAppMessage({
     return { conversation, autoReplied: false as const };
   }
 
-  const agent = conversation.agentId ? await prisma.agent.findUnique({ where: { id: conversation.agentId } }) : null;
+  let agent = conversation.agentId ? await prisma.agent.findUnique({ where: { id: conversation.agentId } }) : null;
+
+  if (!agent) {
+    agent = await prisma.agent.findFirst({
+      where: { companyId: channel.companyId, isActive: true, channels: { some: { channelId: channel.id } } },
+      orderBy: { createdAt: "asc" },
+    });
+    if (agent) {
+      conversation = await prisma.conversation.update({ where: { id: conversation.id }, data: { agentId: agent.id } });
+    }
+  }
 
   if (conversation.aiPaused || !agent) {
     return { conversation, autoReplied: false as const };

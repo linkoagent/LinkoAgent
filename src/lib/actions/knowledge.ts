@@ -58,7 +58,13 @@ export async function reprocessKnowledgeSource(sourceId: string) {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
   const source = await prisma.knowledgeSource.findFirst({ where: { id: sourceId, companyId: ctx.companyId } });
   if (!source) return;
-  await processKnowledgeSource(sourceId);
+
+  try {
+    await processKnowledgeSource(sourceId);
+  } catch {
+    // el estado ERROR y el mensaje ya quedan guardados en processKnowledgeSource.
+  }
+
   revalidatePath("/knowledge");
 }
 
