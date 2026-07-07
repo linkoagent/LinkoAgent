@@ -121,11 +121,17 @@ export async function completeEmbeddedSignup(params: {
   }
 }
 
+/**
+ * Desconectar libera el Phone Number ID/WABA ID/token del todo (no solo cambia el estado):
+ * como el token temporal de Meta vence a las 24hs igual, no tiene sentido guardar estos datos
+ * "por las dudas" — y así el mismo número de prueba se puede reconectar a otra empresa sin
+ * chocar con la restricción única de phoneNumberId.
+ */
 export async function disconnectChannel(channelId: string) {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
   await prisma.channel.updateMany({
     where: { id: channelId, companyId: ctx.companyId },
-    data: { status: "DISCONNECTED", connectedAt: null },
+    data: { status: "DISCONNECTED", connectedAt: null, phoneNumberId: null, wabaId: null, accessToken: null },
   });
   revalidatePath("/channels");
 }
