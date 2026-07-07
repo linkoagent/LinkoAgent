@@ -4,6 +4,7 @@ import { detectIntent, detectSentiment } from "@/lib/ai/heuristics";
 import { searchKnowledge } from "@/lib/ai/knowledge";
 import { runAgentOnMessage } from "@/lib/ai/agentEngine";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/client";
+import { registerNewConversationUsage } from "@/lib/billing";
 
 export interface InboundWhatsAppMessage {
   channel: Channel;
@@ -53,6 +54,8 @@ export async function processInboundWhatsAppMessage({
     orderBy: { createdAt: "desc" },
   });
 
+  let overLimit = false;
+
   if (!conversation) {
     const defaultAgent = await prisma.agent.findFirst({
       where: { companyId: channel.companyId, isActive: true, channels: { some: { channelId: channel.id } } },
@@ -68,6 +71,8 @@ export async function processInboundWhatsAppMessage({
         status: "OPEN",
       },
     });
+
+    ({ overLimit } = await registerNewConversationUsage(channel.companyId));
   }
 
   await prisma.message.create({
@@ -83,6 +88,20 @@ export async function processInboundWhatsAppMessage({
   });
 
   await prisma.channel.update({ where: { id: channel.id }, data: { lastMessageAt: new Date(), lastError: null } });
+
+  if (overLimit) {
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { status: "HANDED_OFF", aiPaused: true },
+    });
+    await prisma.humanHandoff.create({
+      data: {
+        conversationId: conversation.id,
+        reason: "Se alcanzó el límite de conversaciones mensuales del plan.",
+      },
+    });
+    return { conversation, autoReplied: false as const };
+  }
 
   const agent = conversation.agentId ? await prisma.agent.findUnique({ where: { id: conversation.agentId } }) : null;
 

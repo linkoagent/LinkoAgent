@@ -1,5 +1,13 @@
 import { PlanTier } from "@prisma/client";
 
+// Misma cotización de referencia que se muestra en la landing (src/data/marketing.ts).
+// Ajustar acá y allá según el tipo de cambio vigente al momento de cobrar.
+export const USD_TO_ARS = 1450;
+
+export function planPriceArs(priceUsd: number) {
+  return Math.round((priceUsd * USD_TO_ARS) / 100) * 100;
+}
+
 export const PLAN_DEFS: Record<
   PlanTier,
   {

@@ -193,6 +193,7 @@ model Subscription {
   conversationsUsed Int      @default(0)
   tokensUsed        Int      @default(0)
   costUsd           Float    @default(0)
+  mpPreapprovalId   String?  @unique
   createdAt         DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)

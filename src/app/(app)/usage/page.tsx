@@ -1,6 +1,7 @@
 import { requireRole } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatUsd } from "@/lib/utils";
+import { UpgradePlans } from "@/components/usage/upgrade-plans";
 
 function UsageBar({ used, max, label }: { used: number; max: number; label: string }) {
   const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : 0;
@@ -19,7 +20,7 @@ function UsageBar({ used, max, label }: { used: number; max: number; label: stri
   );
 }
 
-export default async function UsagePage() {
+export default async function UsagePage({ searchParams }: { searchParams: { mock?: string } }) {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
 
   const [subscription, agentsCount, channelsCount, usersCount] = await Promise.all([
@@ -41,6 +42,16 @@ export default async function UsagePage() {
         <h1 className="font-display text-2xl font-semibold text-foreground">Uso y plan</h1>
         <p className="mt-1 text-sm text-muted-foreground">Plan actual: {plan.name}.</p>
       </div>
+
+      {searchParams.mock === "1" && (
+        <div className="rounded-xl border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
+          Volviste de un checkout simulado de Mercado Pago — no se realizó ningún cobro real. Cargá{" "}
+          <code className="rounded bg-secondary px-1.5 py-0.5 text-foreground">MERCADOPAGO_ACCESS_TOKEN</code> para
+          conectar el cobro real.
+        </div>
+      )}
+
+      <UpgradePlans currentTier={plan.tier} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
