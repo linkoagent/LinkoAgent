@@ -298,7 +298,7 @@ model KnowledgeChunk {
   companyId  String
   content    String
   tokenCount Int                          @default(0)
-  embedding  Unsupported("vector(1536)")?
+  embedding  Unsupported("vector(768)")?
   createdAt  DateTime                     @default(now())
 
   source KnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)

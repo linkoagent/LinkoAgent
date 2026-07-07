@@ -64,7 +64,9 @@ export default function PrivacidadPage() {
             </p>
             <ul className="mt-2 list-disc space-y-1.5 pl-5">
               <li>
-                <span className="text-foreground">OpenAI</span>, para generar las respuestas de los agentes de IA.
+                <span className="text-foreground">Groq</span>, para generar las respuestas de los agentes de IA, y{" "}
+                <span className="text-foreground">Google (Gemini)</span>, para la búsqueda semántica en la base de
+                conocimiento.
               </li>
               <li>
                 <span className="text-foreground">Meta (WhatsApp Business Platform)</span>, para el envío y

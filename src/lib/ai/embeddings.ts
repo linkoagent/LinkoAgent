@@ -1,19 +1,16 @@
-import OpenAI from "openai";
+// Embeddings de Google Gemini (capa gratuita, sin tarjeta). text-embedding-004 devuelve
+// vectores de 768 dimensiones — si se cambia de modelo/proveedor, EMBEDDING_DIM y la columna
+// "vector(768)" en KnowledgeChunk tienen que quedar en sintonía.
+export const EMBEDDING_DIM = 768;
+export const AI_MOCK = !process.env.GOOGLE_API_KEY || process.env.AI_MOCK_MODE === "true";
 
-export const EMBEDDING_DIM = 1536;
-export const AI_MOCK = !process.env.OPENAI_API_KEY || process.env.AI_MOCK_MODE === "true";
-
-let client: OpenAI | null = null;
-function getClient() {
-  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  return client;
-}
+const GEMINI_EMBEDDING_MODEL = process.env.GOOGLE_EMBEDDING_MODEL || "text-embedding-004";
 
 /**
  * Embedding determinístico (hash de caracteres) solo para desarrollo sin API key.
  * No tiene significado semántico real: sirve para ejercitar el pipeline (guardar,
  * consultar por similaridad coseno), no para relevancia real. Se reemplaza solo
- * por embeddings de OpenAI en cuanto se carga OPENAI_API_KEY.
+ * por embeddings de Gemini en cuanto se carga GOOGLE_API_KEY.
  */
 function mockEmbedding(text: string): number[] {
   const vec = new Array(EMBEDDING_DIM).fill(0);
@@ -27,11 +24,22 @@ function mockEmbedding(text: string): number[] {
 
 export async function embedText(text: string): Promise<number[]> {
   if (AI_MOCK) return mockEmbedding(text);
-  const res = await getClient().embeddings.create({
-    model: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
-    input: text.slice(0, 8000),
-  });
-  return res.data[0].embedding;
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EMBEDDING_MODEL}:embedContent?key=${process.env.GOOGLE_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: { parts: [{ text: text.slice(0, 8000) }] } }),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error(`Gemini embeddings failed (${res.status}): ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  return data.embedding.values as number[];
 }
 
 export function toVectorLiteral(vec: number[]): string {

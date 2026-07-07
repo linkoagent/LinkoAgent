@@ -85,7 +85,7 @@ export default function TerminosPage() {
             <p className="mt-2">
               Hacemos nuestro mejor esfuerzo para mantener la plataforma disponible, pero no garantizamos un
               porcentaje de disponibilidad (uptime) específico. Puede haber interrupciones por mantenimiento o por
-              causas fuera de nuestro control (por ejemplo, caídas de Meta, OpenAI u otros proveedores externos).
+              causas fuera de nuestro control (por ejemplo, caídas de Meta, Groq, Google u otros proveedores externos).
             </p>
           </section>
 

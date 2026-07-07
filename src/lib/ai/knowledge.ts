@@ -50,7 +50,7 @@ export interface KnowledgeMatch {
 
 /**
  * Busca los fragmentos de conocimiento más relevantes para un agente.
- * Con OpenAI configurado usa similaridad coseno real sobre pgvector;
+ * Con Gemini configurado usa similaridad coseno real sobre pgvector;
  * en modo mock usa superposición de palabras (los embeddings simulados
  * no tienen significado semántico, así que buscar por ellos no serviría).
  */

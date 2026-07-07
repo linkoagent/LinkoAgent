@@ -1,12 +1,14 @@
 import OpenAI from "openai";
 import { normalizeWords } from "@/lib/ai/embeddings";
 
-export const AI_MOCK = !process.env.OPENAI_API_KEY || process.env.AI_MOCK_MODE === "true";
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+export const AI_MOCK = !process.env.GROQ_API_KEY || process.env.AI_MOCK_MODE === "true";
+const MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
+// Groq expone una API compatible con el SDK de OpenAI, así que reutilizamos el mismo
+// cliente apuntando a su baseURL en vez de reescribir la integración.
 let client: OpenAI | null = null;
 function getClient() {
-  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!client) client = new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: "https://api.groq.com/openai/v1" });
   return client;
 }
 
@@ -24,10 +26,10 @@ export interface ChatResult {
   model: string;
 }
 
-// Precios de referencia aproximados (USD por 1M tokens). Ajustar si cambia el modelo/proveedor.
+// Groq no cobra por el tier gratuito que usamos, así que el costo estimado queda en 0.
+// Si en algún momento se pasa a un plan pago de Groq (u otro proveedor), actualizar acá.
 const PRICING: Record<string, { input: number; output: number }> = {
-  "gpt-4o-mini": { input: 0.15, output: 0.6 },
-  default: { input: 0.15, output: 0.6 },
+  default: { input: 0, output: 0 },
 };
 
 function estimateCost(model: string, promptTokens: number, completionTokens: number) {
