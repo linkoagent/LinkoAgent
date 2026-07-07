@@ -69,6 +69,19 @@ export async function processInboundWhatsAppMessage({
     ({ overLimit } = await registerNewConversationUsage(channel.companyId));
   }
 
+  // Meta reintenta el webhook si no respondemos 200 a tiempo (o si hubo un error): sin este
+  // chequeo, cada reintento generaba un mensaje de cliente duplicado y una respuesta de IA
+  // (y un cobro de tokens) por cada reintento del mismo mensaje.
+  if (channelMessageId) {
+    const alreadyProcessed = await prisma.message.findFirst({
+      where: { conversationId: conversation.id, channelMessageId },
+      select: { id: true },
+    });
+    if (alreadyProcessed) {
+      return { conversation, autoReplied: false as const };
+    }
+  }
+
   await prisma.message.create({
     data: { conversationId: conversation.id, sender: "CUSTOMER", content: text, channelMessageId },
   });

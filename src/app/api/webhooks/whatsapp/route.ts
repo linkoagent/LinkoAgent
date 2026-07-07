@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
+    console.error("[webhook/whatsapp] Error procesando mensaje entrante:", err);
     await prisma.webhookEvent.create({
       data: { provider: "whatsapp", payload, error: err instanceof Error ? err.message : String(err) },
     });
