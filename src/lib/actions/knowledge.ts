@@ -5,14 +5,40 @@ import type { KnowledgeSourceType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/tenant";
 import { processKnowledgeSource } from "@/lib/ai/knowledge";
+import { extractTextFromFile, knowledgeTypeForFile } from "@/lib/ai/fileExtract";
 
-export async function createKnowledgeSource(formData: FormData) {
+export interface CreateKnowledgeSourceResult {
+  ok: boolean;
+  error?: string;
+}
+
+export async function createKnowledgeSource(formData: FormData): Promise<CreateKnowledgeSourceResult> {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
-  const name = String(formData.get("name") ?? "").trim();
-  const type = String(formData.get("type") ?? "TEXT") as KnowledgeSourceType;
-  const content = String(formData.get("content") ?? "").trim();
+  let name = String(formData.get("name") ?? "").trim();
+  let type = String(formData.get("type") ?? "TEXT") as KnowledgeSourceType;
+  let content = String(formData.get("content") ?? "").trim();
 
-  if (!name || !content) return;
+  const file = formData.get("file");
+  if (file instanceof File && file.size > 0) {
+    const detectedType = knowledgeTypeForFile(file.name);
+    if (!detectedType) {
+      return { ok: false, error: `Formato no soportado: "${file.name}". Usá PDF, Word, Excel, CSV o texto.` };
+    }
+
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      content = await extractTextFromFile(file.name, buffer);
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "No se pudo leer el archivo" };
+    }
+
+    type = detectedType;
+    if (!name) name = file.name;
+  }
+
+  if (!name || !content) {
+    return { ok: false, error: "Falta un nombre y contenido (pegado o desde un archivo)" };
+  }
 
   const source = await prisma.knowledgeSource.create({
     data: { companyId: ctx.companyId, name, type, content },
@@ -25,6 +51,7 @@ export async function createKnowledgeSource(formData: FormData) {
   }
 
   revalidatePath("/knowledge");
+  return { ok: true };
 }
 
 export async function reprocessKnowledgeSource(sourceId: string) {

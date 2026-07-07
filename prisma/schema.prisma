@@ -69,6 +69,8 @@ enum KnowledgeSourceType {
   FAQ
   PDF
   URL
+  DOCX
+  SPREADSHEET
 }
 
 enum KnowledgeStatus {

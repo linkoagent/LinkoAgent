@@ -25,7 +25,8 @@ export default async function KnowledgePage() {
       <div>
         <h1 className="font-display text-2xl font-semibold text-foreground">Base de conocimiento</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Entrená a tus agentes con FAQs y texto propio. Cada fuente se indexa para que la puedan buscar por significado.
+          Entrená a tus agentes con FAQs, texto propio, o subiendo PDF, Word, Excel o CSV. Cada fuente se indexa para
+          que la puedan buscar por significado.
         </p>
       </div>
 
