@@ -1,10 +1,11 @@
-// Embeddings de Google Gemini (capa gratuita, sin tarjeta). text-embedding-004 devuelve
-// vectores de 768 dimensiones — si se cambia de modelo/proveedor, EMBEDDING_DIM y la columna
-// "vector(768)" en KnowledgeChunk tienen que quedar en sintonía.
+// Embeddings de Google Gemini (capa gratuita, sin tarjeta). gemini-embedding-001 devuelve
+// 3072 dimensiones por defecto; le pedimos 768 explícitamente vía embedContentConfig — si se
+// cambia de modelo/proveedor/dimensión, EMBEDDING_DIM y la columna "vector(768)" en
+// KnowledgeChunk tienen que quedar en sintonía.
 export const EMBEDDING_DIM = 768;
 export const AI_MOCK = !process.env.GOOGLE_API_KEY || process.env.AI_MOCK_MODE === "true";
 
-const GEMINI_EMBEDDING_MODEL = process.env.GOOGLE_EMBEDDING_MODEL || "text-embedding-004";
+const GEMINI_EMBEDDING_MODEL = process.env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
 
 /**
  * Embedding determinístico (hash de caracteres) solo para desarrollo sin API key.
@@ -26,11 +27,17 @@ export async function embedText(text: string): Promise<number[]> {
   if (AI_MOCK) return mockEmbedding(text);
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EMBEDDING_MODEL}:embedContent?key=${process.env.GOOGLE_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EMBEDDING_MODEL}:embedContent`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: { parts: [{ text: text.slice(0, 8000) }] } }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": process.env.GOOGLE_API_KEY!,
+      },
+      body: JSON.stringify({
+        content: { parts: [{ text: text.slice(0, 8000) }] },
+        embedContentConfig: { outputDimensionality: EMBEDDING_DIM },
+      }),
     }
   );
 
