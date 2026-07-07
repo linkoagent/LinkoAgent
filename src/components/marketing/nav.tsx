@@ -11,10 +11,10 @@ export function MarketingNav() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-4">
-        <a href="#top" className="flex items-center gap-2.5">
+        <Link href="/" className="flex items-center gap-2.5">
           <Logomark size={28} />
           <Wordmark />
-        </a>
+        </Link>
 
         <nav className="ml-auto hidden items-center gap-1 md:flex">
           {marketingNav.map((item) => (
@@ -33,7 +33,7 @@ export function MarketingNav() {
             Iniciar sesión
           </Link>
           <a
-            href="#contacto"
+            href="/#contacto"
             className="rounded-lg bg-brand-button px-4 py-2 font-display text-[12.5px] text-white shadow-[0_6px_20px_-6px_hsl(258_92%_71%/0.55)] transition hover:brightness-110"
           >
             Agendar demo
@@ -74,7 +74,7 @@ export function MarketingNav() {
               Iniciar sesión
             </Link>
             <a
-              href="#contacto"
+              href="/#contacto"
               className="rounded-lg bg-brand-button px-3 py-2 text-center font-display text-[13px] text-white"
               onClick={() => setOpen(false)}
             >

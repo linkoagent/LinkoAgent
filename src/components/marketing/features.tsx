@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { features } from "@/data/marketing";
 
 export function MarketingFeatures() {
@@ -27,14 +28,14 @@ export function MarketingFeatures() {
                 ))}
               </ul>
               <div className="mt-6 flex flex-wrap gap-3">
-                <a
-                  href="#contacto"
+                <Link
+                  href="/signup"
                   className="rounded-lg bg-brand-button px-5 py-2.5 font-display text-[12.5px] text-white transition hover:brightness-110"
                 >
                   {f.cta}
-                </a>
+                </Link>
                 <a
-                  href="#contacto"
+                  href="/#contacto"
                   className="rounded-lg border border-border px-5 py-2.5 font-display text-[12.5px] text-muted-foreground transition hover:border-faint"
                 >
                   Agendar demo

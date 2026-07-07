@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { footerLinks, contactChannels } from "@/data/marketing";
 import { Logomark, Wordmark } from "@/components/logomark";
 
@@ -7,10 +8,10 @@ export function MarketingFooter() {
       <div className="mx-auto max-w-6xl px-6 py-14">
         <div className="grid gap-10 sm:grid-cols-3">
           <div>
-            <a href="#top" className="flex items-center gap-2.5">
+            <Link href="/" className="flex items-center gap-2.5">
               <Logomark size={26} />
               <Wordmark />
-            </a>
+            </Link>
             <p className="mt-3 max-w-xs text-[12.5px] text-faint">
               La plataforma de agentes de IA que conecta empresas con clientes, automatiza conversaciones y convierte
               mensajes en ventas.

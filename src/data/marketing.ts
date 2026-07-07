@@ -1,8 +1,8 @@
 export const marketingNav = [
-  { label: "Producto", href: "#producto" },
-  { label: "Soluciones", href: "#soluciones" },
-  { label: "Precios", href: "#precios" },
-  { label: "Preguntas frecuentes", href: "#faq" },
+  { label: "Producto", href: "/#producto" },
+  { label: "Soluciones", href: "/#soluciones" },
+  { label: "Precios", href: "/#precios" },
+  { label: "Preguntas frecuentes", href: "/#faq" },
 ];
 
 export const hero = {
@@ -195,10 +195,10 @@ export const contactChannels = [
 
 export const footerLinks = {
   producto: [
-    { label: "Producto", href: "#producto" },
-    { label: "Soluciones", href: "#soluciones" },
-    { label: "Precios", href: "#precios" },
-    { label: "Preguntas frecuentes", href: "#faq" },
+    { label: "Producto", href: "/#producto" },
+    { label: "Soluciones", href: "/#soluciones" },
+    { label: "Precios", href: "/#precios" },
+    { label: "Preguntas frecuentes", href: "/#faq" },
   ],
   legal: [
     { label: "Política de privacidad", href: "/privacidad" },

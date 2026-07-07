@@ -79,7 +79,7 @@ export function MarketingPricing() {
             </ul>
 
             <Link
-              href={plan.price === null ? "#contacto" : "/signup"}
+              href={plan.price === null ? "/#contacto" : "/signup"}
               className={`mt-auto rounded-lg px-4 py-2.5 text-center font-display text-[12.5px] transition ${
                 plan.featured
                   ? "bg-primary text-white hover:bg-primary-dim"
