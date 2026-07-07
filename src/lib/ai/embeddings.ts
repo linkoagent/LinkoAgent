@@ -46,7 +46,15 @@ export async function embedText(text: string): Promise<number[]> {
   }
 
   const data = await res.json();
-  return data.embedding.values as number[];
+  const values = data.embedding.values as number[];
+
+  // gemini-embedding-001 no siempre respeta outputDimensionality (devolvió 3072 en la
+  // práctica pese a pedirle 768). Es un embedding tipo Matryoshka: se puede truncar a las
+  // primeras N dimensiones y renormalizar sin perder demasiada calidad semántica, así que lo
+  // hacemos acá para no depender de que la API cumpla el parámetro.
+  const truncated = values.slice(0, EMBEDDING_DIM);
+  const norm = Math.sqrt(truncated.reduce((s, v) => s + v * v, 0)) || 1;
+  return truncated.map((v) => v / norm);
 }
 
 export function toVectorLiteral(vec: number[]): string {
