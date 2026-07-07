@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/tenant";
 import { testWhatsAppConnection } from "@/lib/whatsapp/client";
@@ -10,7 +11,12 @@ import {
   fetchPhoneNumberDisplayName,
 } from "@/lib/whatsapp/embeddedSignup";
 
-export async function connectWhatsAppChannel(formData: FormData) {
+export interface ConnectWhatsAppResult {
+  ok: boolean;
+  error?: string;
+}
+
+export async function connectWhatsAppChannel(formData: FormData): Promise<ConnectWhatsAppResult> {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
 
   const accountName = String(formData.get("accountName") ?? "").trim();
@@ -18,39 +24,47 @@ export async function connectWhatsAppChannel(formData: FormData) {
   const wabaId = String(formData.get("wabaId") ?? "").trim();
   const accessToken = String(formData.get("accessToken") ?? "").trim();
 
-  if (!phoneNumberId) return;
+  if (!phoneNumberId) return { ok: false, error: "Falta el Phone Number ID" };
 
-  const existing = await prisma.channel.findFirst({ where: { companyId: ctx.companyId, type: "WHATSAPP" } });
+  try {
+    const existing = await prisma.channel.findFirst({ where: { companyId: ctx.companyId, type: "WHATSAPP" } });
 
-  if (existing) {
-    await prisma.channel.update({
-      where: { id: existing.id },
-      data: {
-        accountName: accountName || existing.accountName,
-        phoneNumberId,
-        wabaId: wabaId || null,
-        accessToken: accessToken || null,
-        status: "CONNECTED",
-        connectedAt: new Date(),
-        lastError: null,
-      },
-    });
-  } else {
-    await prisma.channel.create({
-      data: {
-        companyId: ctx.companyId,
-        type: "WHATSAPP",
-        accountName: accountName || null,
-        phoneNumberId,
-        wabaId: wabaId || null,
-        accessToken: accessToken || null,
-        status: "CONNECTED",
-        connectedAt: new Date(),
-      },
-    });
+    if (existing) {
+      await prisma.channel.update({
+        where: { id: existing.id },
+        data: {
+          accountName: accountName || existing.accountName,
+          phoneNumberId,
+          wabaId: wabaId || null,
+          accessToken: accessToken || null,
+          status: "CONNECTED",
+          connectedAt: new Date(),
+          lastError: null,
+        },
+      });
+    } else {
+      await prisma.channel.create({
+        data: {
+          companyId: ctx.companyId,
+          type: "WHATSAPP",
+          accountName: accountName || null,
+          phoneNumberId,
+          wabaId: wabaId || null,
+          accessToken: accessToken || null,
+          status: "CONNECTED",
+          connectedAt: new Date(),
+        },
+      });
+    }
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return { ok: false, error: "Ese Phone Number ID ya está conectado a otra cuenta de Linko." };
+    }
+    return { ok: false, error: err instanceof Error ? err.message : "Error conectando el canal" };
   }
 
   revalidatePath("/channels");
+  return { ok: true };
 }
 
 export interface EmbeddedSignupResult {
