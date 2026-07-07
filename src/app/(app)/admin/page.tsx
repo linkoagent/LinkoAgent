@@ -1,7 +1,7 @@
 import { requireRole } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { CompanyRowActions } from "@/components/admin/company-row-actions";
-import { formatUsd } from "@/lib/utils";
+import { formatUsd, formatDateTime } from "@/lib/utils";
 
 export default async function AdminPage() {
   await requireRole(["SUPER_ADMIN"]);
@@ -69,7 +69,7 @@ export default async function AdminPage() {
             <div key={e.id} className="rounded-lg bg-secondary p-2.5 text-xs">
               <p className="text-destructive">{e.error}</p>
               <p className="mt-1 text-muted-foreground">
-                {e.provider} · {e.createdAt.toLocaleString("es-AR")}
+                {e.provider} · {formatDateTime(e.createdAt)}
               </p>
             </div>
           ))}
