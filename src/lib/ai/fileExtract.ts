@@ -1,3 +1,4 @@
+import "@/lib/ai/pdfPolyfill";
 import mammoth from "mammoth";
 import ExcelJS from "exceljs";
 import { PDFParse } from "pdf-parse";
