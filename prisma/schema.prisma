@@ -99,11 +99,12 @@ enum Priority {
 // ---------- Core / tenancy ----------
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  passwordHash    String
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
 
   memberships           Membership[]
   notes                 Note[]

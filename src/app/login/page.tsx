@@ -14,22 +14,39 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setNeedsVerification(false);
+    setResendSent(false);
 
     const res = await signIn("credentials", { redirect: false, email, password });
     setLoading(false);
 
+    if (res?.error === "EMAIL_NOT_VERIFIED") {
+      setNeedsVerification(true);
+      return;
+    }
     if (res?.error) {
       setError("Email o contraseña incorrectos.");
       return;
     }
     router.push("/dashboard");
     router.refresh();
+  }
+
+  async function handleResend() {
+    await fetch("/api/auth/resend-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    setResendSent(true);
   }
 
   return (
@@ -66,6 +83,23 @@ export default function LoginPage() {
             </div>
 
             {error && <p className="text-xs text-destructive">{error}</p>}
+
+            {needsVerification && (
+              <div className="rounded-lg border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+                <p>Todavía no confirmaste tu email. Revisá tu casilla, o reenviamos el link.</p>
+                {resendSent ? (
+                  <p className="mt-1.5 text-foreground">Listo, te reenviamos el email.</p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    className="mt-1.5 text-primary hover:underline"
+                  >
+                    Reenviar email de confirmación
+                  </button>
+                )}
+              </div>
+            )}
 
             <Button type="submit" disabled={loading} className="mt-2">
               {loading ? "Ingresando..." : "Ingresar"}

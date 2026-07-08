@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { createPasswordToken } from "@/lib/email/tokens";
+import { sendEmail } from "@/lib/email/client";
+import { verifyEmailEmail } from "@/lib/email/templates";
 
 const schema = z.object({
   name: z.string().min(2, "Ingresá tu nombre"),
@@ -31,7 +34,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No hay planes seedeados. Corré `npm run db:seed`." }, { status: 500 });
   }
 
-  await prisma.$transaction(async (tx) => {
+  const user = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({ data: { name, email: normalizedEmail, passwordHash } });
     const company = await tx.company.create({ data: { name: companyName } });
     await tx.membership.create({ data: { userId: user.id, companyId: company.id, role: "COMPANY_ADMIN" } });
@@ -42,6 +45,15 @@ export async function POST(req: Request) {
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
+    return user;
+  });
+
+  const token = await createPasswordToken(user.id, "VERIFY_EMAIL", 24);
+  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/verify-email?token=${token}`;
+  await sendEmail({
+    to: user.email,
+    subject: "Confirmá tu email en Linko Agent",
+    html: verifyEmailEmail({ name: user.name, verifyUrl }),
   });
 
   return NextResponse.json({ ok: true });

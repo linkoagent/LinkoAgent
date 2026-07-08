@@ -28,6 +28,21 @@ export function passwordResetEmail(params: { name: string; resetUrl: string }) {
   `);
 }
 
+export function verifyEmailEmail(params: { name: string; verifyUrl: string }) {
+  return layout(`
+    <p style="font-size:15px; line-height:1.5;">Hola ${params.name},</p>
+    <p style="font-size:15px; line-height:1.5;">
+      Gracias por crear tu cuenta en Linko Agent. Confirmá tu email para poder ingresar — este enlace es válido por 24 horas:
+    </p>
+    <p style="margin:24px 0;">
+      <a href="${params.verifyUrl}" style="background:linear-gradient(135deg,#8B6BFF,#4C1D95); color:white; padding:12px 20px; border-radius:8px; text-decoration:none; font-size:14px;">
+        Confirmar mi email
+      </a>
+    </p>
+    <p style="font-size:13px; color:#9C96C4;">Si no creaste esta cuenta, podés ignorar este email.</p>
+  `);
+}
+
 export function teamInviteEmail(params: { name: string; companyName: string; inviterName: string; setPasswordUrl: string }) {
   return layout(`
     <p style="font-size:15px; line-height:1.5;">Hola ${params.name},</p>
