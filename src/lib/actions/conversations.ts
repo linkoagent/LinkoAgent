@@ -13,19 +13,34 @@ async function loadConversation(conversationId: string, companyId: string) {
   });
 }
 
-export async function sendManualReply(conversationId: string, text: string) {
+export interface SendManualReplyResult {
+  ok: boolean;
+  error?: string;
+}
+
+export async function sendManualReply(conversationId: string, text: string): Promise<SendManualReplyResult> {
   const ctx = await requireCompanyContext();
-  if (!text.trim()) return;
+  if (!text.trim()) return { ok: false, error: "El mensaje está vacío" };
 
   const conversation = await loadConversation(conversationId, ctx.companyId);
-  if (!conversation) return;
+  if (!conversation) return { ok: false, error: "Conversación no encontrada" };
 
+  // Se guarda primero, pase lo que pase con el envío: si WhatsApp lo rechaza (ej. se cerró la
+  // ventana de 24hs desde el último mensaje del cliente), igual queda registrado en el
+  // historial en vez de perderse junto con la excepción.
   await prisma.message.create({
     data: { conversationId, sender: "HUMAN", content: text.trim() },
   });
 
   if (conversation.channel.type === "WHATSAPP") {
-    await sendWhatsAppMessage({ channel: conversation.channel, to: conversation.customer.channelUserId, text: text.trim() });
+    try {
+      await sendWhatsAppMessage({ channel: conversation.channel, to: conversation.customer.channelUserId, text: text.trim() });
+    } catch (err) {
+      const error = err instanceof Error ? err.message : "Error enviando el mensaje por WhatsApp";
+      await prisma.channel.update({ where: { id: conversation.channel.id }, data: { lastError: error } });
+      revalidatePath(`/inbox/${conversationId}`);
+      return { ok: false, error };
+    }
   }
 
   await prisma.conversation.update({
@@ -39,6 +54,7 @@ export async function sendManualReply(conversationId: string, text: string) {
 
   revalidatePath(`/inbox/${conversationId}`);
   revalidatePath("/inbox");
+  return { ok: true };
 }
 
 export async function toggleAiPause(conversationId: string, aiPaused: boolean) {

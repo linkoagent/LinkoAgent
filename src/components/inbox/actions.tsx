@@ -21,6 +21,7 @@ import {
 
 export function ReplyBox({ conversationId }: { conversationId: string }) {
   const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function handleSubmit(e: React.FormEvent) {
@@ -28,21 +29,32 @@ export function ReplyBox({ conversationId }: { conversationId: string }) {
     if (!text.trim()) return;
     const value = text;
     setText("");
-    startTransition(() => sendManualReply(conversationId, value));
+    setError(null);
+    startTransition(async () => {
+      const res = await sendManualReply(conversationId, value);
+      if (!res.ok) setError(res.error ?? "No se pudo enviar el mensaje");
+    });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-2 border-t border-border p-4">
-      <Textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Escribir una respuesta manual..."
-        rows={2}
-        className="flex-1"
-      />
-      <Button type="submit" disabled={pending || !text.trim()} size="icon">
-        <Send className="h-4 w-4" />
-      </Button>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2 border-t border-border p-4">
+      {error && (
+        <p className="text-xs text-destructive">
+          No se mandó por WhatsApp (el mensaje quedó guardado en el historial igual): {error}
+        </p>
+      )}
+      <div className="flex items-end gap-2">
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Escribir una respuesta manual..."
+          rows={2}
+          className="flex-1"
+        />
+        <Button type="submit" disabled={pending || !text.trim()} size="icon">
+          <Send className="h-4 w-4" />
+        </Button>
+      </div>
     </form>
   );
 }
