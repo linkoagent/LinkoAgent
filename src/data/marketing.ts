@@ -177,8 +177,9 @@ export const faqs = [
 ];
 
 export const contactChannels = [
-  { label: "WhatsApp", value: "+54 9 351 762-8450", href: "https://wa.me/5493517628450" },
+  { label: "WhatsApp", value: "+54 9 351 636-2806", href: "https://wa.me/5493516362806" },
   { label: "Email", value: "hola@linkoagent.com", href: "mailto:hola@linkoagent.com" },
+  { label: "Instagram", value: "@linkoagent", href: "https://instagram.com/linkoagent" },
 ];
 
 export const footerLinks = {

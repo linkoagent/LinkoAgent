@@ -22,7 +22,7 @@ export function MarketingHero() {
               Crear cuenta gratis
             </Link>
             <a
-              href="https://wa.me/5493517628450"
+              href="https://wa.me/5493516362806"
               className="rounded-lg border border-border bg-card px-6 py-3 font-display text-[13px] text-foreground transition hover:border-faint"
             >
               Hablar por WhatsApp
