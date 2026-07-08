@@ -87,6 +87,36 @@ export async function sendWhatsAppTemplateMessage(params: {
   return { ok: true, mocked: false, id: data.messages?.[0]?.id as string | undefined };
 }
 
+/**
+ * Un número recién migrado a mano (no vía Embedded Signup) queda en estado "Pending" en Meta
+ * hasta que se registra contra la Cloud API — un paso separado de la verificación por SMS, que
+ * activa el cifrado del número. Sin esto, el número queda ahí sin poder mandar/recibir mensajes
+ * reales aunque ya esté cargado en Linko. El PIN es de uso interno de Meta (2FA del número),
+ * no hace falta que el usuario lo recuerde para nada de nuestro lado.
+ */
+export async function registerWhatsAppNumber(channel: Channel) {
+  if (isMock(channel)) {
+    return { ok: true, mocked: true };
+  }
+
+  const pin = String(Math.floor(100000 + Math.random() * 900000));
+
+  const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${channel.phoneNumberId}/register`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${channel.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ messaging_product: "whatsapp", pin }),
+  });
+
+  if (!res.ok) {
+    return { ok: false, mocked: false, error: await res.text() };
+  }
+
+  return { ok: true, mocked: false };
+}
+
 export async function testWhatsAppConnection(channel: Channel) {
   if (isMock(channel)) {
     return { ok: true, mocked: true };

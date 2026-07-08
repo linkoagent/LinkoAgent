@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/tenant";
-import { testWhatsAppConnection } from "@/lib/whatsapp/client";
+import { testWhatsAppConnection, registerWhatsAppNumber } from "@/lib/whatsapp/client";
 import {
   exchangeEmbeddedSignupCode,
   subscribeAppToWaba,
@@ -26,11 +26,12 @@ export async function connectWhatsAppChannel(formData: FormData): Promise<Connec
 
   if (!phoneNumberId) return { ok: false, error: "Falta el Phone Number ID" };
 
+  let channel;
   try {
     const existing = await prisma.channel.findFirst({ where: { companyId: ctx.companyId, type: "WHATSAPP" } });
 
     if (existing) {
-      await prisma.channel.update({
+      channel = await prisma.channel.update({
         where: { id: existing.id },
         data: {
           accountName: accountName || existing.accountName,
@@ -43,7 +44,7 @@ export async function connectWhatsAppChannel(formData: FormData): Promise<Connec
         },
       });
     } else {
-      await prisma.channel.create({
+      channel = await prisma.channel.create({
         data: {
           companyId: ctx.companyId,
           type: "WHATSAPP",
@@ -61,6 +62,14 @@ export async function connectWhatsAppChannel(formData: FormData): Promise<Connec
       return { ok: false, error: "Ese Phone Number ID ya está conectado a otra cuenta de Linko." };
     }
     return { ok: false, error: err instanceof Error ? err.message : "Error conectando el canal" };
+  }
+
+  // Un número migrado a mano (no vía Embedded Signup) queda "Pending" en Meta hasta que se
+  // registra contra la Cloud API — sin esto no manda/recibe mensajes reales. Si ya estaba
+  // registrado de antes, Meta devuelve error y simplemente lo ignoramos (no es un fallo real).
+  const registerResult = await registerWhatsAppNumber(channel);
+  if (!registerResult.ok && !registerResult.mocked) {
+    await prisma.channel.update({ where: { id: channel.id }, data: { lastError: registerResult.error ?? null } });
   }
 
   revalidatePath("/channels");
