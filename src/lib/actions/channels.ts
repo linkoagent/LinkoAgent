@@ -23,6 +23,7 @@ export async function connectWhatsAppChannel(formData: FormData): Promise<Connec
   const phoneNumberId = String(formData.get("phoneNumberId") ?? "").trim();
   const wabaId = String(formData.get("wabaId") ?? "").trim();
   const accessToken = String(formData.get("accessToken") ?? "").trim();
+  const twoStepPin = String(formData.get("twoStepPin") ?? "").trim();
 
   if (!phoneNumberId) return { ok: false, error: "Falta el Phone Number ID" };
 
@@ -67,7 +68,7 @@ export async function connectWhatsAppChannel(formData: FormData): Promise<Connec
   // Un número migrado a mano (no vía Embedded Signup) queda "Pending" en Meta hasta que se
   // registra contra la Cloud API — sin esto no manda/recibe mensajes reales. Si ya estaba
   // registrado de antes, Meta devuelve error y simplemente lo ignoramos (no es un fallo real).
-  const registerResult = await registerWhatsAppNumber(channel);
+  const registerResult = await registerWhatsAppNumber(channel, twoStepPin || undefined);
   if (!registerResult.ok && !registerResult.mocked) {
     await prisma.channel.update({ where: { id: channel.id }, data: { lastError: registerResult.error ?? null } });
   }

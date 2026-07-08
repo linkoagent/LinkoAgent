@@ -91,15 +91,19 @@ export async function sendWhatsAppTemplateMessage(params: {
  * Un número recién migrado a mano (no vía Embedded Signup) queda en estado "Pending" en Meta
  * hasta que se registra contra la Cloud API — un paso separado de la verificación por SMS, que
  * activa el cifrado del número. Sin esto, el número queda ahí sin poder mandar/recibir mensajes
- * reales aunque ya esté cargado en Linko. El PIN es de uso interno de Meta (2FA del número),
- * no hace falta que el usuario lo recuerde para nada de nuestro lado.
+ * reales aunque ya esté cargado en Linko.
+ *
+ * Si el número ya tenía verificación en dos pasos configurada (ej. porque estuvo en la app de
+ * WhatsApp Business del celular), Meta exige ESE PIN exacto, no uno inventado — de ahí el
+ * parámetro opcional. Si no se pasa nada, generamos uno al azar (sirve para números que nunca
+ * tuvieron 2FA configurado).
  */
-export async function registerWhatsAppNumber(channel: Channel) {
+export async function registerWhatsAppNumber(channel: Channel, pin?: string) {
   if (isMock(channel)) {
     return { ok: true, mocked: true };
   }
 
-  const pin = String(Math.floor(100000 + Math.random() * 900000));
+  const registrationPin = pin?.trim() || String(Math.floor(100000 + Math.random() * 900000));
 
   const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${channel.phoneNumberId}/register`, {
     method: "POST",
@@ -107,7 +111,7 @@ export async function registerWhatsAppNumber(channel: Channel) {
       Authorization: `Bearer ${channel.accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ messaging_product: "whatsapp", pin }),
+    body: JSON.stringify({ messaging_product: "whatsapp", pin: registrationPin }),
   });
 
   if (!res.ok) {

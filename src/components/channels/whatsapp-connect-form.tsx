@@ -52,6 +52,10 @@ export function WhatsAppConnectForm({ channel }: { channel: Channel | null }) {
           <Label htmlFor="accessToken">Access token</Label>
           <Input id="accessToken" name="accessToken" type="password" placeholder="EAAG..." />
         </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="twoStepPin">PIN de verificación en dos pasos (opcional)</Label>
+          <Input id="twoStepPin" name="twoStepPin" type="password" placeholder="Solo si el número ya tenía uno configurado" />
+        </div>
       </div>
       <Button type="submit" disabled={pending} className="w-fit">
         {pending ? "Guardando..." : channel ? "Actualizar conexión" : "Conectar"}
