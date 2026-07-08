@@ -1,16 +1,37 @@
+// Gmail (sobre todo la app de celular) reinterpreta a su manera los colores de emails con
+// fondo oscuro armados solo con <div>/CSS, y termina mostrando un fondo claro que no es el
+// nuestro. La combinación de "color-scheme: light only" + tablas con bgcolor explícito (en vez
+// de depender solo de background en divs) es lo que le impide a los clientes de mail reescribir
+// la paleta.
 function layout(bodyHtml: string) {
-  return `
-  <div style="font-family: -apple-system, 'Segoe UI', sans-serif; background:#0E0B1D; padding:32px; color:#EEF0FC;">
-    <div style="max-width:480px; margin:0 auto; background:#171328; border-radius:16px; padding:32px; border:1px solid #2A2440;">
-      <div style="font-family: Georgia, serif; font-weight:700; font-size:20px; margin-bottom:24px;">
-        Link<span style="color:#8B6BFF;">o</span> <span style="color:#9C96C4; font-weight:500;">Agent</span>
-      </div>
-      ${bodyHtml}
-      <p style="margin-top:32px; font-size:12px; color:#7679A0;">
-        Linko Agent · hola@linkoagent.com
-      </p>
-    </div>
-  </div>`;
+  return `<!DOCTYPE html>
+<html lang="es" style="color-scheme: light only; supported-color-schemes: light only;">
+  <head>
+    <meta name="color-scheme" content="light only">
+    <meta name="supported-color-schemes" content="light only">
+  </head>
+  <body style="margin:0; padding:0; background-color:#0E0B1D;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0E0B1D" style="background-color:#0E0B1D;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" bgcolor="#171328" style="background-color:#171328; max-width:480px; width:100%; border-radius:16px; border:1px solid #2A2440;">
+            <tr>
+              <td style="padding:32px; font-family: -apple-system, 'Segoe UI', sans-serif; color:#EEF0FC;">
+                <div style="font-family: Georgia, serif; font-weight:700; font-size:20px; margin-bottom:24px; color:#EEF0FC;">
+                  Link<span style="color:#8B6BFF;">o</span> <span style="color:#9C96C4; font-weight:500;">Agent</span>
+                </div>
+                ${bodyHtml}
+                <p style="margin-top:32px; font-size:12px; color:#7679A0;">
+                  Linko Agent · hola@linkoagent.com
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
 }
 
 export function passwordResetEmail(params: { name: string; resetUrl: string }) {
