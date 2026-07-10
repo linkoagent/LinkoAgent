@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useLocale, useMarketingContent } from "./locale-provider";
+import { Reveal } from "./reveal";
 
 const initialForm = {
   nombre: "",
@@ -60,7 +61,7 @@ export function MarketingContact() {
 
   return (
     <section id="contacto" className="mx-auto max-w-6xl px-6 py-24">
-      <div className="grid gap-12 lg:grid-cols-[1fr_1.2fr]">
+      <Reveal className="grid gap-12 lg:grid-cols-[1fr_1.2fr]">
         <div>
           <span className="font-display text-[11px] uppercase tracking-wide text-faint">
             {locale === "es" ? "Contacto" : "Contact"}
@@ -193,7 +194,7 @@ export function MarketingContact() {
             </form>
           )}
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }

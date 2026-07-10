@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usdToArs } from "@/data/marketing";
 import { useLocale, useMarketingContent } from "./locale-provider";
+import { Reveal, StaggerGroup, StaggerItem, HoverLift } from "./reveal";
 
 function formatPrice(price: number | null, currency: string, locale: "es" | "en") {
   if (price === null) return locale === "es" ? "A medida" : "Custom";
@@ -19,7 +20,7 @@ export function MarketingPricing() {
 
   return (
     <section id="precios" className="mx-auto max-w-6xl px-6 py-24">
-      <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
+      <Reveal className="mb-10 flex flex-wrap items-end justify-between gap-6">
         <div className="max-w-2xl">
           <span className="font-display text-[11px] uppercase tracking-wide text-faint">
             {locale === "es" ? "Precios" : "Pricing"}
@@ -48,62 +49,73 @@ export function MarketingPricing() {
             </button>
           ))}
         </div>
-      </div>
+      </Reveal>
 
-      <div className="grid gap-5 lg:grid-cols-4">
+      <StaggerGroup className="grid gap-5 lg:grid-cols-4">
         {plans.map((plan) => (
-          <div
-            key={plan.name}
-            className={`relative flex flex-col gap-5 rounded-2xl border bg-card p-6 ${
-              plan.featured ? "border-primary shadow-lg shadow-primary/10" : "border-border"
-            }`}
-          >
-            {plan.featured && (
-              <span className="absolute -top-3 right-6 rounded-full bg-primary px-3 py-1 font-display text-[10.5px] text-white">
-                {locale === "es" ? "Más elegido" : "Most popular"}
-              </span>
-            )}
-            <div>
-              <h3 className="font-display text-base text-foreground">{plan.name}</h3>
-              <p className="mt-1.5 text-[12.5px] text-muted-foreground">{plan.tagline}</p>
-            </div>
+          <StaggerItem key={plan.name}>
+            <HoverLift>
+              <div
+                className={`relative flex flex-col gap-5 rounded-2xl border bg-card p-6 ${
+                  plan.featured ? "border-primary shadow-lg shadow-primary/10" : "border-border"
+                }`}
+              >
+                {plan.featured && (
+                  <span className="absolute -top-3 right-6 rounded-full bg-primary px-3 py-1 font-display text-[10.5px] text-white">
+                    {locale === "es" ? "Más elegido" : "Most popular"}
+                  </span>
+                )}
+                <div>
+                  <h3 className="font-display text-base text-foreground">{plan.name}</h3>
+                  <p className="mt-1.5 text-[12.5px] text-muted-foreground">{plan.tagline}</p>
+                </div>
 
-            <div>
-              <div className="font-display text-3xl text-foreground tabular-nums">
-                {formatPrice(plan.price, currency, locale)}
-                {plan.price !== null && <span className="font-sans text-[13px] text-faint"> /{locale === "es" ? "mes" : "mo"}</span>}
+                <div>
+                  <div className="font-display text-3xl text-foreground tabular-nums">
+                    {formatPrice(plan.price, currency, locale)}
+                    {plan.price !== null && (
+                      <span className="font-sans text-[13px] text-faint"> /{locale === "es" ? "mes" : "mo"}</span>
+                    )}
+                  </div>
+                  <div className="mt-1 font-display text-[11px] text-faint">
+                    {plan.setup !== null
+                      ? `${locale === "es" ? "Implementación desde" : "Implementation from"} ${formatPrice(plan.setup, currency, locale)}`
+                      : locale === "es"
+                        ? "Implementación a medida"
+                        : "Custom implementation"}
+                  </div>
+                </div>
+
+                <ul className="flex flex-col gap-2">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-[12.5px] text-muted-foreground">
+                      <span className="mt-0.5 font-display text-primary">›</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  href={plan.price === null ? "/#contacto" : "/signup"}
+                  className={`mt-auto rounded-lg px-4 py-2.5 text-center font-display text-[12.5px] transition ${
+                    plan.featured
+                      ? "bg-primary text-white hover:bg-primary-dim"
+                      : "border border-border text-foreground hover:border-faint"
+                  }`}
+                >
+                  {plan.price === null
+                    ? locale === "es"
+                      ? "Hablar con ventas"
+                      : "Talk to sales"
+                    : locale === "es"
+                      ? "Empezar ahora"
+                      : "Start now"}
+                </Link>
               </div>
-              <div className="mt-1 font-display text-[11px] text-faint">
-                {plan.setup !== null
-                  ? `${locale === "es" ? "Implementación desde" : "Implementation from"} ${formatPrice(plan.setup, currency, locale)}`
-                  : locale === "es"
-                    ? "Implementación a medida"
-                    : "Custom implementation"}
-              </div>
-            </div>
-
-            <ul className="flex flex-col gap-2">
-              {plan.features.map((f) => (
-                <li key={f} className="flex items-start gap-2 text-[12.5px] text-muted-foreground">
-                  <span className="mt-0.5 font-display text-primary">›</span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-
-            <Link
-              href={plan.price === null ? "/#contacto" : "/signup"}
-              className={`mt-auto rounded-lg px-4 py-2.5 text-center font-display text-[12.5px] transition ${
-                plan.featured
-                  ? "bg-primary text-white hover:bg-primary-dim"
-                  : "border border-border text-foreground hover:border-faint"
-              }`}
-            >
-              {plan.price === null ? (locale === "es" ? "Hablar con ventas" : "Talk to sales") : locale === "es" ? "Empezar ahora" : "Start now"}
-            </Link>
-          </div>
+            </HoverLift>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerGroup>
 
       <p className="mt-6 text-center font-display text-[11px] text-faint">
         {locale === "es"

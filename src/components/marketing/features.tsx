@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AgentBuilderMock, AnalyticsMock, InboxMock } from "./feature-mocks";
 import { useLocale, useMarketingContent } from "./locale-provider";
+import { Reveal } from "./reveal";
 
 const FEATURE_MOCKS = [AgentBuilderMock, AnalyticsMock, InboxMock];
 
@@ -12,7 +13,7 @@ export function MarketingFeatures() {
 
   return (
     <section id="producto" className="mx-auto max-w-6xl px-6 py-24">
-      <div className="mb-14 max-w-2xl">
+      <Reveal className="mb-14 max-w-2xl">
         <span className="font-display text-[11px] uppercase tracking-wide text-faint">
           {locale === "es" ? "Producto" : "Product"}
         </span>
@@ -21,7 +22,7 @@ export function MarketingFeatures() {
             ? "Todo lo que necesitás para no perder una conversación."
             : "Everything you need to never miss a conversation."}
         </h2>
-      </div>
+      </Reveal>
 
       <div className="flex flex-col gap-20">
         {features.map((f, i) => {
@@ -31,7 +32,7 @@ export function MarketingFeatures() {
               key={f.title}
               className={`grid items-center gap-10 lg:grid-cols-2 ${i % 2 === 1 ? "lg:[&>*:first-child]:order-2" : ""}`}
             >
-              <div>
+              <Reveal>
                 <span className="font-display text-[11px] uppercase tracking-wide text-heart">{f.kicker}</span>
                 <h3 className="mt-2 text-2xl font-bold text-foreground">{f.title}</h3>
                 <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">{f.body}</p>
@@ -57,9 +58,11 @@ export function MarketingFeatures() {
                     {locale === "es" ? "Agendar demo" : "Book a demo"}
                   </a>
                 </div>
-              </div>
+              </Reveal>
 
-              <Mock />
+              <Reveal delay={0.1}>
+                <Mock />
+              </Reveal>
             </div>
           );
         })}
