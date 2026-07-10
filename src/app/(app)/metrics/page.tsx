@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { getFilteredMetrics } from "@/lib/metrics";
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { capitalizeLabel } from "@/lib/utils";
 import { CheckCircle2, Users, XCircle, ListChecks } from "lucide-react";
 
 export default async function MetricsPage({
@@ -89,7 +90,7 @@ export default async function MetricsPage({
             {metrics.topIntents.length === 0 && <p className="text-xs text-muted-foreground">Sin datos todavía.</p>}
             {metrics.topIntents.map(([intent, count]) => (
               <div key={intent} className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{intent.replace(/_/g, " ")}</span>
+                <span className="text-muted-foreground">{capitalizeLabel(intent)}</span>
                 <span className="font-display tabular-nums text-foreground">{count}</span>
               </div>
             ))}
@@ -103,7 +104,7 @@ export default async function MetricsPage({
             )}
             {Object.entries(metrics.sentimentCounts).map(([s, count]) => (
               <div key={s} className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{s}</span>
+                <span className="text-muted-foreground">{capitalizeLabel(s)}</span>
                 <span className="font-display tabular-nums text-foreground">{count}</span>
               </div>
             ))}

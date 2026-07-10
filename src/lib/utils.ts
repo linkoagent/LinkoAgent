@@ -33,3 +33,9 @@ export function formatDateTime(date: Date | string) {
 export function formatUsd(value: number) {
   return `US$ ${value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 }
+
+/** "consulta_general" -> "Consulta general", "neutral" -> "Neutral". */
+export function capitalizeLabel(value: string) {
+  const withSpaces = value.replace(/_/g, " ");
+  return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1);
+}

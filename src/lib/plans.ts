@@ -78,6 +78,14 @@ export const CONVERSATION_STATUS_LABELS: Record<string, string> = {
   CLOSED: "Cerrado",
 };
 
+export const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
+  active: "Activo",
+  authorized: "Activo",
+  pending: "Pendiente",
+  paused: "Pausado",
+  cancelled: "Cancelado",
+};
+
 export const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
   COMPANY_ADMIN: "Admin de empresa",

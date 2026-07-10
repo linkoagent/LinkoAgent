@@ -3,7 +3,7 @@ import { requireCompanyContext } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { CONVERSATION_STATUS_LABELS } from "@/lib/plans";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, capitalizeLabel } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -84,7 +84,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { tab?
 
             <div className="flex flex-wrap items-center gap-2 text-xs">
               {c.detectedSentiment && (
-                <Badge variant={SENTIMENT_VARIANT[c.detectedSentiment] ?? "outline"}>{c.detectedSentiment}</Badge>
+                <Badge variant={SENTIMENT_VARIANT[c.detectedSentiment] ?? "outline"}>{capitalizeLabel(c.detectedSentiment)}</Badge>
               )}
               {c.aiPaused && <Badge variant="warning">IA pausada</Badge>}
               <Badge variant="outline">{CONVERSATION_STATUS_LABELS[c.status] ?? c.status}</Badge>

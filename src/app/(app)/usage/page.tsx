@@ -1,6 +1,7 @@
 import { requireRole } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatUsd } from "@/lib/utils";
+import { SUBSCRIPTION_STATUS_LABELS } from "@/lib/plans";
 import { UpgradePlans } from "@/components/usage/upgrade-plans";
 
 function UsageBar({ used, max, label }: { used: number; max: number; label: string }) {
@@ -80,7 +81,9 @@ export default async function UsagePage({ searchParams }: { searchParams: { mock
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Estado</span>
-            <span className="font-display text-foreground">{subscription.status}</span>
+            <span className="font-display text-foreground">
+              {SUBSCRIPTION_STATUS_LABELS[subscription.status] ?? subscription.status}
+            </span>
           </div>
         </div>
       </div>

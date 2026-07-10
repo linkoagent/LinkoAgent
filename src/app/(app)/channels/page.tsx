@@ -23,14 +23,16 @@ export default async function ChannelsPage() {
       <WhatsAppConnectForm channel={whatsappChannel} />
       {whatsappChannel && <SimulateMessageForm channelId={whatsappChannel.id} />}
 
-      <div className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">Webhook para conectar con Meta</p>
-        <p className="mt-1">
-          Configurá en tu app de Meta for Developers la URL de callback apuntando a{" "}
-          <code className="rounded bg-secondary px-1.5 py-0.5 text-foreground">/api/webhooks/whatsapp</code> de este
-          dominio, con el token de verificación definido en <code className="rounded bg-secondary px-1.5 py-0.5 text-foreground">WHATSAPP_WEBHOOK_VERIFY_TOKEN</code>.
-        </p>
-      </div>
+      {ctx.role === "SUPER_ADMIN" && (
+        <div className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">Webhook para conectar con Meta (solo vos)</p>
+          <p className="mt-1">
+            Configurá en tu app de Meta for Developers la URL de callback apuntando a{" "}
+            <code className="rounded bg-secondary px-1.5 py-0.5 text-foreground">/api/webhooks/whatsapp</code> de este
+            dominio, con el token de verificación definido en <code className="rounded bg-secondary px-1.5 py-0.5 text-foreground">WHATSAPP_WEBHOOK_VERIFY_TOKEN</code>.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

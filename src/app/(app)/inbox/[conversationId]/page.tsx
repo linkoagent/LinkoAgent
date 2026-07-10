@@ -3,7 +3,7 @@ import { requireCompanyContext } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { CONVERSATION_STATUS_LABELS } from "@/lib/plans";
-import { formatDateTime, cn } from "@/lib/utils";
+import { formatDateTime, cn, capitalizeLabel } from "@/lib/utils";
 import {
   ReplyBox,
   AiPauseSwitch,
@@ -99,11 +99,15 @@ export default async function ConversationPage({ params }: { params: { conversat
           <div className="flex flex-col gap-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Intención</span>
-              <span className="text-foreground">{conversation.detectedIntent ?? "—"}</span>
+              <span className="text-foreground">
+                {conversation.detectedIntent ? capitalizeLabel(conversation.detectedIntent) : "—"}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Sentimiento</span>
-              <span className="text-foreground">{conversation.detectedSentiment ?? "—"}</span>
+              <span className="text-foreground">
+                {conversation.detectedSentiment ? capitalizeLabel(conversation.detectedSentiment) : "—"}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Agente</span>

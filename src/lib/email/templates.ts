@@ -18,7 +18,7 @@ function layout(bodyHtml: string) {
             <tr>
               <td style="padding:32px; font-family: -apple-system, 'Segoe UI', sans-serif; color:#EEF0FC;">
                 <div style="font-family: Georgia, serif; font-weight:700; font-size:20px; margin-bottom:24px; color:#EEF0FC;">
-                  Link<span style="color:#8B6BFF;">o</span> <span style="color:#9C96C4; font-weight:500;">Agent</span>
+                  Link<span style="color:#8B6BFF;">o</span> Agent
                 </div>
                 ${bodyHtml}
                 <p style="margin-top:32px; font-size:12px; color:#7679A0;">
@@ -61,6 +61,23 @@ export function verifyEmailEmail(params: { name: string; verifyUrl: string }) {
       </a>
     </p>
     <p style="font-size:13px; color:#9C96C4;">Si no creaste esta cuenta, podés ignorar este email.</p>
+  `);
+}
+
+export function handoffEmail(params: { name: string; customerName: string; reason: string; conversationUrl: string }) {
+  return layout(`
+    <p style="font-size:15px; line-height:1.5;">Hola ${params.name},</p>
+    <p style="font-size:15px; line-height:1.5;">
+      Una conversación con <strong>${params.customerName}</strong> necesita atención de una persona del equipo:
+    </p>
+    <p style="font-size:14px; line-height:1.5; color:#9C96C4; border-left:2px solid #8B6BFF; padding-left:12px; margin:16px 0;">
+      ${params.reason}
+    </p>
+    <p style="margin:24px 0;">
+      <a href="${params.conversationUrl}" style="background:linear-gradient(135deg,#8B6BFF,#4C1D95); color:white; padding:12px 20px; border-radius:8px; text-decoration:none; font-size:14px;">
+        Ver conversación
+      </a>
+    </p>
   `);
 }
 
