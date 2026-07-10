@@ -1,23 +1,19 @@
 import type { Metadata } from "next";
-import { Fredoka, Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
-const fredoka = Fredoka({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-display",
-});
-
+// Un solo family para todo el sitio: antes el display usaba Fredoka (redondeada, informal),
+// que no encajaba con el look más corporativo que se busca ahora.
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
   variable: "--font-sans",
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-const title = "Linko Agent — Plataforma de agentes de IA para WhatsApp, Instagram y Messenger";
+const title = "Linko Agent — Plataforma de agentes de IA para WhatsApp";
 const description =
-  "Creá, entrená y administrá agentes de IA que responden, venden y hacen seguimiento por WhatsApp, Instagram y Messenger, 24/7.";
+  "Creá, entrená y administrá agentes de IA que responden, venden y hacen seguimiento por WhatsApp, 24/7.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -45,7 +41,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${fredoka.variable} ${jakarta.variable}`}>
+    <html lang="es" className={jakarta.variable}>
       <body className="bg-brand-glow bg-fixed antialiased">{children}</body>
     </html>
   );

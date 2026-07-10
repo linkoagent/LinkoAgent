@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { features } from "@/data/marketing";
+import { AgentBuilderMock, AnalyticsMock, InboxMock } from "./feature-mocks";
+
+const FEATURE_MOCKS = [AgentBuilderMock, AnalyticsMock, InboxMock];
 
 export function MarketingFeatures() {
   return (
@@ -10,7 +13,9 @@ export function MarketingFeatures() {
       </div>
 
       <div className="flex flex-col gap-20">
-        {features.map((f, i) => (
+        {features.map((f, i) => {
+          const Mock = FEATURE_MOCKS[i % FEATURE_MOCKS.length];
+          return (
           <div
             key={f.title}
             className={`grid items-center gap-10 lg:grid-cols-2 ${i % 2 === 1 ? "lg:[&>*:first-child]:order-2" : ""}`}
@@ -43,19 +48,10 @@ export function MarketingFeatures() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card p-8">
-              <div className="flex h-56 flex-col justify-between rounded-xl bg-background p-5">
-                <div className="flex gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-border" />
-                  <span className="h-2 w-2 rounded-full bg-border" />
-                  <span className="h-2 w-2 rounded-full bg-border" />
-                </div>
-                <div className="font-display text-5xl font-bold text-border">{String(i + 1).padStart(2, "0")}</div>
-                <div className="font-display text-[11px] text-faint">{f.kicker}</div>
-              </div>
-            </div>
+            <Mock />
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

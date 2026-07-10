@@ -6,7 +6,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        display: ["var(--font-display)", "Fredoka", "ui-rounded", "sans-serif"],
+        // "display" usa la misma family que el body (Plus Jakarta Sans) — antes tenía su
+        // propia fuente (Fredoka, redondeada e informal), que no encajaba con un look serio.
+        display: ["var(--font-sans)", "Plus Jakarta Sans", "-apple-system", "Segoe UI", "sans-serif"],
         sans: ["var(--font-sans)", "Plus Jakarta Sans", "-apple-system", "Segoe UI", "sans-serif"],
       },
       colors: {

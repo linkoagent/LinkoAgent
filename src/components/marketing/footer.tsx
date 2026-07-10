@@ -16,7 +16,6 @@ export function MarketingFooter() {
               La plataforma de agentes de IA que conecta empresas con clientes, automatiza conversaciones y convierte
               mensajes en ventas.
             </p>
-            <p className="mt-4 font-display text-[11px] text-faint">Hecho con ♥ desde Argentina</p>
           </div>
 
           <div>
