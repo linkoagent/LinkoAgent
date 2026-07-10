@@ -4,7 +4,11 @@ import { motion, type Variants } from "framer-motion";
 
 const EASE: [number, number, number, number] = [0.21, 0.47, 0.32, 0.98];
 
-/** Fade + slide-up al entrar en viewport, una sola vez. El bloque base de "dinamismo". */
+/**
+ * Fade + slide-up al entrar en viewport. Se repite cada vez (once: false): si volvés a
+ * scrollear hacia arriba y el bloque sale de la pantalla, se resetea, y reaparece animado
+ * de nuevo al volver a bajar — no es algo que se ve una sola vez por carga de página.
+ */
 export function Reveal({
   children,
   className,
@@ -19,7 +23,7 @@ export function Reveal({
       className={className}
       initial={{ opacity: 0, y: 28 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
+      viewport={{ once: false, margin: "-80px" }}
       transition={{ duration: 0.65, ease: EASE, delay }}
     >
       {children}
@@ -45,7 +49,7 @@ export function StaggerGroup({ children, className }: { children: React.ReactNod
       variants={staggerContainer}
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, margin: "-60px" }}
+      viewport={{ once: false, margin: "-60px" }}
     >
       {children}
     </motion.div>
