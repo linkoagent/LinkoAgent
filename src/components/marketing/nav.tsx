@@ -2,11 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { marketingNav } from "@/data/marketing";
 import { Logomark, Wordmark } from "@/components/logomark";
+import { useLocale, useMarketingContent } from "./locale-provider";
+import { LanguageSwitcher } from "./language-switcher";
 
 export function MarketingNav() {
   const [open, setOpen] = useState(false);
+  const { locale } = useLocale();
+  const { nav: marketingNav } = useMarketingContent();
+  const loginLabel = locale === "es" ? "Iniciar sesión" : "Log in";
+  const demoLabel = locale === "es" ? "Agendar demo" : "Book a demo";
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-sm">
@@ -29,14 +34,15 @@ export function MarketingNav() {
         </nav>
 
         <div className="ml-auto hidden items-center gap-3 md:flex">
+          <LanguageSwitcher />
           <Link href="/login" className="font-display text-[12.5px] text-muted-foreground hover:text-foreground">
-            Iniciar sesión
+            {loginLabel}
           </Link>
           <a
             href="/#contacto"
             className="rounded-lg bg-brand-button px-4 py-2 font-display text-[12.5px] text-white shadow-[0_6px_20px_-6px_hsl(258_92%_71%/0.55)] transition hover:brightness-110"
           >
-            Agendar demo
+            {demoLabel}
           </a>
         </div>
 
@@ -65,20 +71,23 @@ export function MarketingNav() {
               </a>
             ))}
           </nav>
+          <div className="mt-3 flex items-center justify-center">
+            <LanguageSwitcher />
+          </div>
           <div className="mt-3 flex flex-col gap-2">
             <Link
               href="/login"
               className="rounded-lg border border-border px-3 py-2 text-center font-display text-[13px] text-foreground"
               onClick={() => setOpen(false)}
             >
-              Iniciar sesión
+              {loginLabel}
             </Link>
             <a
               href="/#contacto"
               className="rounded-lg bg-brand-button px-3 py-2 text-center font-display text-[13px] text-white"
               onClick={() => setOpen(false)}
             >
-              Agendar demo
+              {demoLabel}
             </a>
           </div>
         </div>

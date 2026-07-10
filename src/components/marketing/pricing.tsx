@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { plansUSD, usdToArs } from "@/data/marketing";
+import { usdToArs } from "@/data/marketing";
+import { useLocale, useMarketingContent } from "./locale-provider";
 
-function formatPrice(price: number | null, currency: string) {
-  if (price === null) return "A medida";
+function formatPrice(price: number | null, currency: string, locale: "es" | "en") {
+  if (price === null) return locale === "es" ? "A medida" : "Custom";
   const value = currency === "ARS" ? Math.round((price * usdToArs) / 100) * 100 : price;
   const symbol = currency === "ARS" ? "AR$" : "US$";
   return `${symbol} ${value.toLocaleString("es-AR")}`;
@@ -13,15 +14,23 @@ function formatPrice(price: number | null, currency: string) {
 
 export function MarketingPricing() {
   const [currency, setCurrency] = useState<"USD" | "ARS">("USD");
+  const { locale } = useLocale();
+  const { plans } = useMarketingContent();
 
   return (
     <section id="precios" className="mx-auto max-w-6xl px-6 py-24">
       <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
         <div className="max-w-2xl">
-          <span className="font-display text-[11px] uppercase tracking-wide text-faint">Precios</span>
-          <h2 className="mt-3 text-3xl font-bold text-foreground">Un plan para cada etapa del negocio.</h2>
+          <span className="font-display text-[11px] uppercase tracking-wide text-faint">
+            {locale === "es" ? "Precios" : "Pricing"}
+          </span>
+          <h2 className="mt-3 text-3xl font-bold text-foreground">
+            {locale === "es" ? "Un plan para cada etapa del negocio." : "A plan for every stage of your business."}
+          </h2>
           <p className="mt-2 text-[14px] text-muted-foreground">
-            Suscripción mensual + implementación inicial. Sin permanencia mínima.
+            {locale === "es"
+              ? "Suscripción mensual + implementación inicial. Sin permanencia mínima."
+              : "Monthly subscription + initial implementation. No minimum commitment."}
           </p>
         </div>
 
@@ -42,7 +51,7 @@ export function MarketingPricing() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-4">
-        {plansUSD.map((plan) => (
+        {plans.map((plan) => (
           <div
             key={plan.name}
             className={`relative flex flex-col gap-5 rounded-2xl border bg-card p-6 ${
@@ -51,7 +60,7 @@ export function MarketingPricing() {
           >
             {plan.featured && (
               <span className="absolute -top-3 right-6 rounded-full bg-primary px-3 py-1 font-display text-[10.5px] text-white">
-                Más elegido
+                {locale === "es" ? "Más elegido" : "Most popular"}
               </span>
             )}
             <div>
@@ -61,11 +70,15 @@ export function MarketingPricing() {
 
             <div>
               <div className="font-display text-3xl text-foreground tabular-nums">
-                {formatPrice(plan.price, currency)}
-                {plan.price !== null && <span className="font-sans text-[13px] text-faint"> /mes</span>}
+                {formatPrice(plan.price, currency, locale)}
+                {plan.price !== null && <span className="font-sans text-[13px] text-faint"> /{locale === "es" ? "mes" : "mo"}</span>}
               </div>
               <div className="mt-1 font-display text-[11px] text-faint">
-                {plan.setup !== null ? `Implementación desde ${formatPrice(plan.setup, currency)}` : "Implementación a medida"}
+                {plan.setup !== null
+                  ? `${locale === "es" ? "Implementación desde" : "Implementation from"} ${formatPrice(plan.setup, currency, locale)}`
+                  : locale === "es"
+                    ? "Implementación a medida"
+                    : "Custom implementation"}
               </div>
             </div>
 
@@ -86,14 +99,16 @@ export function MarketingPricing() {
                   : "border border-border text-foreground hover:border-faint"
               }`}
             >
-              {plan.price === null ? "Hablar con ventas" : "Empezar ahora"}
+              {plan.price === null ? (locale === "es" ? "Hablar con ventas" : "Talk to sales") : locale === "es" ? "Empezar ahora" : "Start now"}
             </Link>
           </div>
         ))}
       </div>
 
       <p className="mt-6 text-center font-display text-[11px] text-faint">
-        Cotización en ARS de referencia (US$1 ≈ AR${usdToArs.toLocaleString("es-AR")}) — ajustable según el tipo de cambio vigente.
+        {locale === "es"
+          ? `Cotización en ARS de referencia (US$1 ≈ AR$${usdToArs.toLocaleString("es-AR")}) — ajustable según el tipo de cambio vigente.`
+          : `Reference ARS quote (US$1 ≈ AR$${usdToArs.toLocaleString("es-AR")}) — adjustable based on the current exchange rate.`}
       </p>
     </section>
   );

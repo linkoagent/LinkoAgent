@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { faqs } from "@/data/marketing";
+import { useLocale, useMarketingContent } from "./locale-provider";
 
 function FaqItem({
   q,
@@ -27,13 +27,19 @@ function FaqItem({
 
 export function MarketingFAQ() {
   const [openIndex, setOpenIndex] = useState(0);
+  const { locale } = useLocale();
+  const { faqs } = useMarketingContent();
 
   return (
     <section id="faq" className="border-y border-border bg-card py-24">
       <div className="mx-auto max-w-4xl px-6">
         <div className="mb-10">
-          <span className="font-display text-[11px] uppercase tracking-wide text-faint">Preguntas frecuentes</span>
-          <h2 className="mt-3 text-3xl font-bold text-foreground">Todo lo que preguntan antes de empezar.</h2>
+          <span className="font-display text-[11px] uppercase tracking-wide text-faint">
+            {locale === "es" ? "Preguntas frecuentes" : "Frequently asked questions"}
+          </span>
+          <h2 className="mt-3 text-3xl font-bold text-foreground">
+            {locale === "es" ? "Todo lo que preguntan antes de empezar." : "Everything people ask before getting started."}
+          </h2>
         </div>
         <div>
           {faqs.map((f, i) => (

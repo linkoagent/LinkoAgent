@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/tenant";
+import { LocaleProvider } from "@/components/marketing/locale-provider";
 import { MarketingNav } from "@/components/marketing/nav";
 import { MarketingHero } from "@/components/marketing/hero";
 import { RubrosStrip } from "@/components/marketing/rubros-strip";
@@ -17,18 +18,20 @@ export default async function RootPage() {
   if (user) redirect("/dashboard");
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <MarketingNav />
-      <MarketingHero />
-      <RubrosStrip />
-      <MarketingFeatures />
-      <MarketingSteps />
-      <UseCases />
-      <MarketingBenefits />
-      <MarketingPricing />
-      <MarketingFAQ />
-      <MarketingContact />
-      <MarketingFooter />
-    </div>
+    <LocaleProvider>
+      <div className="min-h-screen bg-background text-foreground">
+        <MarketingNav />
+        <MarketingHero />
+        <RubrosStrip />
+        <MarketingFeatures />
+        <MarketingSteps />
+        <UseCases />
+        <MarketingBenefits />
+        <MarketingPricing />
+        <MarketingFAQ />
+        <MarketingContact />
+        <MarketingFooter />
+      </div>
+    </LocaleProvider>
   );
 }

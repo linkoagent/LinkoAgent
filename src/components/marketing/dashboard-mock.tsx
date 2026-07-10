@@ -1,29 +1,50 @@
-const kpis = [
-  { label: "Conversaciones hoy", val: "312", delta: "↑ 12% vs ayer" },
-  { label: "Activas ahora", val: "24", delta: "18 con IA · 6 con humano" },
-  { label: "Tiempo resp. prom.", val: "00:42", delta: "↓ 9s" },
-  { label: "Leads generados", val: "37", delta: "↑ 5" },
-];
+"use client";
+
+import { useLocale } from "./locale-provider";
 
 const bars = [38, 52, 44, 61, 57, 82, 49, 65, 58, 71, 66, 90, 74, 80];
 
-const channels = [{ name: "WhatsApp", pct: 100, color: "bg-success" }];
-
 export function MarketingDashboardMock() {
+  const { locale } = useLocale();
+  const t =
+    locale === "es"
+      ? {
+          path: "/dashboard",
+          kpis: [
+            { label: "Conversaciones hoy", val: "312", delta: "↑ 12% vs ayer" },
+            { label: "Activas ahora", val: "24", delta: "18 con IA · 6 con humano" },
+            { label: "Tiempo resp. prom.", val: "00:42", delta: "↓ 9s" },
+            { label: "Leads generados", val: "37", delta: "↑ 5" },
+          ],
+          chartTitle: "Conversaciones · últimos 14 días",
+          channelTitle: "Por canal",
+        }
+      : {
+          path: "/dashboard",
+          kpis: [
+            { label: "Conversations today", val: "312", delta: "↑ 12% vs yesterday" },
+            { label: "Active now", val: "24", delta: "18 with AI · 6 with human" },
+            { label: "Avg. response time", val: "00:42", delta: "↓ 9s" },
+            { label: "Leads generated", val: "37", delta: "↑ 5" },
+          ],
+          chartTitle: "Conversations · last 14 days",
+          channelTitle: "By channel",
+        };
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-black/40">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-black/10">
       <div className="flex items-center gap-2 border-b border-border bg-card-soft px-4 py-3">
         <div className="flex gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-border" />
           <span className="h-2.5 w-2.5 rounded-full bg-border" />
           <span className="h-2.5 w-2.5 rounded-full bg-border" />
         </div>
-        <div className="ml-1 font-display text-[11px] text-faint">app.linkoagent.com / dashboard</div>
+        <div className="ml-1 font-display text-[11px] text-faint">app.linkoagent.com{t.path}</div>
       </div>
 
       <div className="flex flex-col gap-4 p-5">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {kpis.map((k) => (
+          {t.kpis.map((k) => (
             <div key={k.label} className="rounded-xl bg-card-soft p-3">
               <div className="font-display text-[10px] uppercase tracking-wide text-faint">{k.label}</div>
               <div className="mt-1 font-display text-lg text-foreground tabular-nums">{k.val}</div>
@@ -34,9 +55,7 @@ export function MarketingDashboardMock() {
 
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
           <div className="rounded-xl bg-card-soft p-4">
-            <div className="mb-3 font-display text-[11px] uppercase tracking-wide text-faint">
-              Conversaciones · últimos 14 días
-            </div>
+            <div className="mb-3 font-display text-[11px] uppercase tracking-wide text-faint">{t.chartTitle}</div>
             <div className="flex h-24 items-end gap-1.5">
               {bars.map((h, i) => (
                 <div
@@ -48,17 +67,15 @@ export function MarketingDashboardMock() {
             </div>
           </div>
           <div className="rounded-xl bg-card-soft p-4">
-            <div className="mb-3 font-display text-[11px] uppercase tracking-wide text-faint">Por canal</div>
+            <div className="mb-3 font-display text-[11px] uppercase tracking-wide text-faint">{t.channelTitle}</div>
             <div className="flex flex-col gap-2.5">
-              {channels.map((c) => (
-                <div key={c.name} className="flex items-center gap-2 text-[12px]">
-                  <span className="w-16 shrink-0 text-muted-foreground">{c.name}</span>
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
-                    <div className={`h-full ${c.color}`} style={{ width: `${c.pct}%` }} />
-                  </div>
-                  <span className="w-8 shrink-0 text-right font-display text-faint">{c.pct}%</span>
+              <div className="flex items-center gap-2 text-[12px]">
+                <span className="w-16 shrink-0 text-muted-foreground">WhatsApp</span>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
+                  <div className="h-full bg-success" style={{ width: "100%" }} />
                 </div>
-              ))}
+                <span className="w-8 shrink-0 text-right font-display text-faint">100%</span>
+              </div>
             </div>
           </div>
         </div>

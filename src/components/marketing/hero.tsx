@@ -1,8 +1,13 @@
+"use client";
+
 import Link from "next/link";
-import { hero } from "@/data/marketing";
 import { MarketingDashboardMock } from "./dashboard-mock";
+import { useLocale, useMarketingContent } from "./locale-provider";
 
 export function MarketingHero() {
+  const { locale } = useLocale();
+  const { hero } = useMarketingContent();
+
   return (
     <section id="top" className="bg-brand-glow px-6 pb-20 pt-16 sm:pt-24">
       <div className="mx-auto grid max-w-6xl gap-14 lg:grid-cols-[1.05fr_1fr] lg:items-center">
@@ -19,13 +24,13 @@ export function MarketingHero() {
               href="/signup"
               className="rounded-lg bg-brand-button px-6 py-3 font-display text-[13px] text-white shadow-[0_10px_30px_-8px_hsl(258_92%_71%/0.6)] transition hover:brightness-110"
             >
-              Crear cuenta gratis
+              {locale === "es" ? "Crear cuenta gratis" : "Create free account"}
             </Link>
             <a
               href="https://wa.me/5493516362806"
               className="rounded-lg border border-border bg-card px-6 py-3 font-display text-[13px] text-foreground transition hover:border-faint"
             >
-              Hablar por WhatsApp
+              {locale === "es" ? "Hablar por WhatsApp" : "Chat on WhatsApp"}
             </a>
           </div>
 

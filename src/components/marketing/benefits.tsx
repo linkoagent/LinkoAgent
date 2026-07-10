@@ -1,12 +1,21 @@
-import { benefits } from "@/data/marketing";
+"use client";
+
+import { useLocale, useMarketingContent } from "./locale-provider";
 
 export function MarketingBenefits() {
+  const { locale } = useLocale();
+  const { benefits } = useMarketingContent();
+
   return (
     <section className="border-y border-border bg-card py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-14 max-w-2xl">
-          <span className="font-display text-[11px] uppercase tracking-wide text-faint">Por qué Linko Agent</span>
-          <h2 className="mt-3 text-3xl font-bold text-foreground">Menos tiempo respondiendo, más tiempo vendiendo.</h2>
+          <span className="font-display text-[11px] uppercase tracking-wide text-faint">
+            {locale === "es" ? "Por qué Linko Agent" : "Why Linko Agent"}
+          </span>
+          <h2 className="mt-3 text-3xl font-bold text-foreground">
+            {locale === "es" ? "Menos tiempo respondiendo, más tiempo vendiendo." : "Less time replying, more time selling."}
+          </h2>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {benefits.map((b) => (

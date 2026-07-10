@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { contactChannels } from "@/data/marketing";
+import { useLocale, useMarketingContent } from "./locale-provider";
 
 const initialForm = {
   nombre: "",
@@ -19,6 +19,8 @@ export function MarketingContact() {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { locale } = useLocale();
+  const { contactChannels } = useMarketingContent();
 
   const update = (field: keyof typeof initialForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -46,7 +48,11 @@ export function MarketingContact() {
     setSending(false);
 
     if (!res.ok) {
-      setError("No pudimos enviar tu consulta. Probá de nuevo o escribinos por WhatsApp.");
+      setError(
+        locale === "es"
+          ? "No pudimos enviar tu consulta. Probá de nuevo o escribinos por WhatsApp."
+          : "We couldn't send your request. Try again or message us on WhatsApp."
+      );
       return;
     }
     setSent(true);
@@ -56,10 +62,16 @@ export function MarketingContact() {
     <section id="contacto" className="mx-auto max-w-6xl px-6 py-24">
       <div className="grid gap-12 lg:grid-cols-[1fr_1.2fr]">
         <div>
-          <span className="font-display text-[11px] uppercase tracking-wide text-faint">Contacto</span>
-          <h2 className="mt-3 text-3xl font-bold text-foreground">Pidamos una demo con tu propio caso.</h2>
+          <span className="font-display text-[11px] uppercase tracking-wide text-faint">
+            {locale === "es" ? "Contacto" : "Contact"}
+          </span>
+          <h2 className="mt-3 text-3xl font-bold text-foreground">
+            {locale === "es" ? "Pidamos una demo con tu propio caso." : "Let's book a demo with your own use case."}
+          </h2>
           <p className="mt-3 max-w-md text-[14px] leading-relaxed text-muted-foreground">
-            Contanos qué canal querés automatizar y te mostramos el agente funcionando con tu negocio, no con un ejemplo genérico.
+            {locale === "es"
+              ? "Contanos qué canal querés automatizar y te mostramos el agente funcionando con tu negocio, no con un ejemplo genérico."
+              : "Tell us which channel you want to automate and we'll show you the agent working with your own business, not a generic example."}
           </p>
 
           <div className="mt-8 flex flex-col gap-3">
@@ -73,7 +85,9 @@ export function MarketingContact() {
                 <span className="text-[13.5px] text-foreground">{c.value}</span>
               </a>
             ))}
-            <p className="font-display text-[11px] text-faint">Respuesta en menos de 24hs.</p>
+            <p className="font-display text-[11px] text-faint">
+              {locale === "es" ? "Respuesta en menos de 24hs." : "Response within 24 hours."}
+            </p>
           </div>
         </div>
 
@@ -81,15 +95,19 @@ export function MarketingContact() {
           {sent ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 py-16 text-center">
               <span className="font-display text-2xl text-success">✓</span>
-              <p className="font-display text-[14px] text-foreground">Listo, recibimos tu consulta.</p>
+              <p className="font-display text-[14px] text-foreground">
+                {locale === "es" ? "Listo, recibimos tu consulta." : "Done, we received your request."}
+              </p>
               <p className="max-w-sm text-[13px] text-muted-foreground">
-                Te vamos a escribir en menos de 24hs para coordinar la demo.
+                {locale === "es"
+                  ? "Te vamos a escribir en menos de 24hs para coordinar la demo."
+                  : "We'll reach out within 24 hours to schedule the demo."}
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1.5 text-[12.5px] text-muted-foreground">
-                Nombre
+                {locale === "es" ? "Nombre" : "Name"}
                 <input
                   required
                   value={form.nombre}
@@ -98,7 +116,7 @@ export function MarketingContact() {
                 />
               </label>
               <label className="flex flex-col gap-1.5 text-[12.5px] text-muted-foreground">
-                Empresa
+                {locale === "es" ? "Empresa" : "Company"}
                 <input
                   required
                   value={form.empresa}
@@ -117,7 +135,7 @@ export function MarketingContact() {
                 />
               </label>
               <label className="flex flex-col gap-1.5 text-[12.5px] text-muted-foreground">
-                Teléfono
+                {locale === "es" ? "Teléfono" : "Phone"}
                 <input
                   value={form.telefono}
                   onChange={update("telefono")}
@@ -125,7 +143,7 @@ export function MarketingContact() {
                 />
               </label>
               <label className="flex flex-col gap-1.5 text-[12.5px] text-muted-foreground">
-                Canal a automatizar
+                {locale === "es" ? "Canal a automatizar" : "Channel to automate"}
                 <select
                   value={form.canal}
                   onChange={update("canal")}
@@ -134,11 +152,11 @@ export function MarketingContact() {
                   <option>WhatsApp</option>
                   <option>Instagram</option>
                   <option>Messenger</option>
-                  <option>Varios canales</option>
+                  <option>{locale === "es" ? "Varios canales" : "Multiple channels"}</option>
                 </select>
               </label>
               <label className="flex flex-col gap-1.5 text-[12.5px] text-muted-foreground">
-                Mensajes aprox. por mes
+                {locale === "es" ? "Mensajes aprox. por mes" : "Approx. messages per month"}
                 <input
                   value={form.mensajesPorMes}
                   onChange={update("mensajesPorMes")}
@@ -146,7 +164,7 @@ export function MarketingContact() {
                 />
               </label>
               <label className="flex flex-col gap-1.5 text-[12.5px] text-muted-foreground sm:col-span-2">
-                Rubro
+                {locale === "es" ? "Rubro" : "Industry"}
                 <input
                   value={form.rubro}
                   onChange={update("rubro")}
@@ -154,7 +172,7 @@ export function MarketingContact() {
                 />
               </label>
               <label className="flex flex-col gap-1.5 text-[12.5px] text-muted-foreground sm:col-span-2">
-                Mensaje
+                {locale === "es" ? "Mensaje" : "Message"}
                 <textarea
                   rows={3}
                   value={form.mensaje}
@@ -170,7 +188,7 @@ export function MarketingContact() {
                 disabled={sending}
                 className="rounded-lg bg-brand-button px-5 py-3 font-display text-[13px] text-white transition hover:brightness-110 disabled:opacity-60 sm:col-span-2"
               >
-                {sending ? "Enviando..." : "Solicitar demo"}
+                {sending ? (locale === "es" ? "Enviando..." : "Sending...") : locale === "es" ? "Solicitar demo" : "Request demo"}
               </button>
             </form>
           )}
