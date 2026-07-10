@@ -1,3 +1,5 @@
+import { RateLimitError } from "@/lib/ai/errors";
+
 // Embeddings de Google Gemini (capa gratuita, sin tarjeta). gemini-embedding-001 devuelve
 // 3072 dimensiones por defecto; le pedimos 768 explícitamente vía embedContentConfig — si se
 // cambia de modelo/proveedor/dimensión, EMBEDDING_DIM y la columna "vector(768)" en
@@ -42,6 +44,9 @@ export async function embedText(text: string): Promise<number[]> {
   );
 
   if (!res.ok) {
+    if (res.status === 429) {
+      throw new RateLimitError("gemini", "Se alcanzó el límite de uso gratuito de Gemini (rate limit), no el límite de conversaciones del plan.");
+    }
     throw new Error(`Gemini embeddings failed (${res.status}): ${await res.text()}`);
   }
 

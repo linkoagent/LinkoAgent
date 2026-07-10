@@ -5,6 +5,8 @@ import { searchKnowledge } from "@/lib/ai/knowledge";
 import { runAgentOnMessage } from "@/lib/ai/agentEngine";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/client";
 import { registerNewConversationUsage } from "@/lib/billing";
+import { RateLimitError } from "@/lib/ai/errors";
+import { notifyHumanHandoff } from "@/lib/notifications";
 
 export interface InboundWhatsAppMessage {
   channel: Channel;
@@ -101,12 +103,9 @@ export async function processInboundWhatsAppMessage({
       where: { id: conversation.id },
       data: { status: "HANDED_OFF", aiPaused: true },
     });
-    await prisma.humanHandoff.create({
-      data: {
-        conversationId: conversation.id,
-        reason: "Se alcanzó el límite de conversaciones mensuales del plan.",
-      },
-    });
+    const reason = "Se alcanzó el límite de conversaciones mensuales del plan.";
+    await prisma.humanHandoff.create({ data: { conversationId: conversation.id, reason } });
+    await notifyHumanHandoff(conversation.id, reason);
     return { conversation, autoReplied: false as const };
   }
 
@@ -126,19 +125,34 @@ export async function processInboundWhatsAppMessage({
     return { conversation, autoReplied: false as const };
   }
 
-  const knowledgeChunks = await searchKnowledge(agent.id, channel.companyId, text);
-  const history = await prisma.message.findMany({
-    where: { conversationId: conversation.id },
-    orderBy: { createdAt: "asc" },
-    take: 21,
-  });
+  let result;
+  try {
+    const knowledgeChunks = await searchKnowledge(agent.id, channel.companyId, text);
+    const history = await prisma.message.findMany({
+      where: { conversationId: conversation.id },
+      orderBy: { createdAt: "asc" },
+      take: 21,
+    });
 
-  const result = await runAgentOnMessage({
-    agent,
-    knowledgeChunks,
-    history: history.slice(0, -1),
-    customerMessage: text,
-  });
+    result = await runAgentOnMessage({
+      agent,
+      knowledgeChunks,
+      history: history.slice(0, -1),
+      customerMessage: text,
+    });
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      const reason = `Se derivó a un humano porque se alcanzó el límite de uso gratuito de ${err.provider === "groq" ? "Groq" : "Gemini"} (no es el límite de conversaciones del plan).`;
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { status: "HANDED_OFF", aiPaused: true },
+      });
+      await prisma.humanHandoff.create({ data: { conversationId: conversation.id, reason } });
+      await notifyHumanHandoff(conversation.id, reason);
+      return { conversation, autoReplied: false as const };
+    }
+    throw err;
+  }
 
   await prisma.message.create({
     data: {
@@ -179,16 +193,29 @@ export async function processInboundWhatsAppMessage({
   });
 
   if (result.shouldHandoff) {
-    await prisma.humanHandoff.create({
-      data: {
-        conversationId: conversation.id,
-        fromAgentId: agent.id,
-        reason: "El agente de IA detectó que la consulta requiere atención humana.",
-      },
-    });
+    const reason = "El agente de IA detectó que la consulta requiere atención humana.";
+    await prisma.humanHandoff.create({ data: { conversationId: conversation.id, fromAgentId: agent.id, reason } });
+    await notifyHumanHandoff(conversation.id, reason);
   }
 
-  await sendWhatsAppMessage({ channel, to: fromPhone, text: result.content });
+  try {
+    await sendWhatsAppMessage({ channel, to: fromPhone, text: result.content });
+  } catch (err) {
+    // El mensaje de la IA ya quedó guardado en el historial (con el texto real, no el error):
+    // lo único que falló fue la entrega por WhatsApp. En vez de dejar la conversación en el
+    // limbo sin que nadie se entere, se deriva a un humano — el cliente no debería quedarse
+    // esperando una respuesta que nunca va a llegar sin que nadie de tu equipo lo note.
+    const error = err instanceof Error ? err.message : "Error enviando el mensaje por WhatsApp";
+    const reason = "No se pudo entregar la respuesta del agente por WhatsApp (falla de conexión con Meta) — revisar el canal.";
+    await prisma.channel.update({ where: { id: channel.id }, data: { lastError: error } });
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { status: "HANDED_OFF", aiPaused: true },
+    });
+    await prisma.humanHandoff.create({ data: { conversationId: conversation.id, fromAgentId: agent.id, reason } });
+    await notifyHumanHandoff(conversation.id, reason);
+    return { conversation, autoReplied: false as const };
+  }
 
   return { conversation, autoReplied: true as const, reply: result.content, handedOff: result.shouldHandoff };
 }

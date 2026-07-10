@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { normalizeWords } from "@/lib/ai/embeddings";
+import { RateLimitError } from "@/lib/ai/errors";
 
 export const AI_MOCK = !process.env.GROQ_API_KEY || process.env.AI_MOCK_MODE === "true";
 const MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
@@ -96,11 +97,19 @@ export async function chatComplete(messages: ChatMessage[]): Promise<ChatResult>
     };
   }
 
-  const res = await getClient().chat.completions.create({
-    model: MODEL,
-    messages,
-    temperature: 0.4,
-  });
+  let res;
+  try {
+    res = await getClient().chat.completions.create({
+      model: MODEL,
+      messages,
+      temperature: 0.4,
+    });
+  } catch (err) {
+    if (err instanceof OpenAI.APIError && err.status === 429) {
+      throw new RateLimitError("groq", "Se alcanzó el límite de uso gratuito de Groq (rate limit), no el límite de conversaciones del plan.");
+    }
+    throw err;
+  }
 
   const promptTokens = res.usage?.prompt_tokens ?? 0;
   const completionTokens = res.usage?.completion_tokens ?? 0;
