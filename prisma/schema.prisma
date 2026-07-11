@@ -160,6 +160,14 @@ model Company {
   isActive          Boolean  @default(true)
   createdAt         DateTime @default(now())
 
+  // ---- Configuración de agenda (src/lib/agenda) ----
+  appointmentDurationMinutes  Int     @default(30)
+  appointmentBufferMinutes    Int     @default(0)
+  /// "HH:mm" o null si no hay pausa configurada. Los dos van juntos: o los dos null, o los dos con valor.
+  lunchBreakStart             String?
+  lunchBreakEnd               String?
+  maxSimultaneousAppointments Int     @default(1)
+
   memberships        Membership[]
   subscription       Subscription?
   channels           Channel[]
@@ -178,6 +186,7 @@ model Company {
   appointments       Appointment[]
   products           Product[]
   messageCorrections MessageCorrection[]
+  holidays           CompanyHoliday[]
 }
 
 model Membership {
@@ -606,13 +615,31 @@ model Appointment {
   customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   conversation Conversation? @relation(fields: [conversationId], references: [id])
 
-  // No hay @@unique([companyId, startsAt]) acá a propósito: un unique constraint incondicional
-  // bloquearía para siempre un horario cancelado (la fila CANCELLED seguiría "ocupando" ese
-  // startsAt). En su lugar hay un índice único PARCIAL (solo sobre status = 'CONFIRMED') creado
-  // a mano en la migración SQL — Prisma no puede expresar índices parciales en el schema, pero
-  // sigue disparando P2002 igual porque lee el código de error de Postgres, no el schema.
+  // No hay @@unique acá a propósito: con maxSimultaneousAppointments configurable, puede haber
+  // más de una fila CONFIRMED superpuesta en el mismo horario (ej. varias sillas de peluquería).
+  // La protección contra doble-reserva por encima del máximo vive en una transacción Postgres
+  // Serializable en src/lib/agenda/service.ts (cuenta overlaps reales, no igualdad de startsAt),
+  // no en un constraint de DB — antes había un índice único parcial solo para status=CONFIRMED,
+  // pero era incompatible con max>1 y además no detectaba solapamientos de duración variable.
   @@index([companyId, startsAt])
   @@index([companyId, customerId, status])
+}
+
+/// Feriados fijos (recurringYearly=true, se repiten todos los años comparando solo mes/día) y
+/// vacaciones puntuales (recurringYearly=false, un rango [date, endDate] de un año específico).
+/// Un solo modelo para los dos casos porque ambos son "bloquear estos días para reservar turnos".
+model CompanyHoliday {
+  id              String    @id @default(cuid())
+  companyId       String
+  date            DateTime  @db.Date
+  endDate         DateTime? @db.Date
+  label           String?
+  recurringYearly Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 /// Inventario simple. Se carga a mano en /products por ahora (sincronización con Google

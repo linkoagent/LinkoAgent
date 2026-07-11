@@ -1,6 +1,5 @@
 import type { Agent } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { GOOGLE_CALENDAR_PROVIDER } from "@/lib/googleCalendar/client";
+import { hasConnectedProvider } from "@/lib/agenda/providerFactory";
 import { CALENDAR_TOOLS } from "./calendar";
 import { INVENTORY_TOOLS } from "./inventory";
 import { KNOWLEDGE_BASE_TOOLS } from "./knowledgeBase";
@@ -17,10 +16,7 @@ export async function getToolsForAgent(agent: Agent): Promise<ToolDefinition[]> 
 
   const tools: ToolDefinition[] = [];
 
-  const calendarIntegration = await prisma.integration.findUnique({
-    where: { companyId_provider: { companyId: agent.companyId, provider: GOOGLE_CALENDAR_PROVIDER } },
-  });
-  if (calendarIntegration?.status === "CONNECTED") {
+  if (await hasConnectedProvider(agent.companyId)) {
     tools.push(...CALENDAR_TOOLS);
   }
 
