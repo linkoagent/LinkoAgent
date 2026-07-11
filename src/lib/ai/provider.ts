@@ -189,23 +189,31 @@ function mockReply(messages: ChatMessage[], tools?: ToolDefinition[]): ChatResul
   return { content, promptTokens, completionTokens, totalTokens: promptTokens + completionTokens, costUsd: 0, model: "mock" };
 }
 
+const INLINE_FUNCTION_CALL_REGEX = /<function=([a-zA-Z_][a-zA-Z0-9_]*)(\{[\s\S]*?\})<\/function>/g;
+
 /**
  * Groq/Llama a veces "alucina" el formato de la llamada a función como texto plano
  * (`<function=nombre{"arg":"valor"}</function>`) en vez de emitirla en el campo estructurado
- * `tool_calls` — cuando pasa esto, Groq no nos da la respuesta normal, tira un 400 con
- * `code: "tool_use_failed"`, pero incluye igual el texto que el modelo intentó generar
- * (`error.failed_generation`). En vez de perder la respuesta, lo parseamos nosotros: el modelo
- * sí eligió bien la función y los argumentos, Groq solo no pudo formatearla de vuelta.
+ * `tool_calls`. Pasa de dos formas distintas: (a) Groq rechaza la respuesta entera con 400
+ * `tool_use_failed` pero incluye el texto en `error.failed_generation`, o (b) — más grave y
+ * silenciosa — Groq devuelve un 200 normal con esta sintaxis cruda mezclada dentro del `content`
+ * visible, que sin este chequeo se le manda al cliente tal cual por WhatsApp. En ambos casos el
+ * modelo sí eligió bien la función y los argumentos, solo falló el formato de vuelta — se
+ * recupera el tool_call y se saca el texto crudo de lo que ve el cliente.
  */
-function parseFailedGeneration(text: string): ChatToolCall[] {
-  const regex = /<function=([a-zA-Z_][a-zA-Z0-9_]*)(\{[\s\S]*?\})<\/function>/g;
+function extractInlineFunctionCalls(text: string): ChatToolCall[] {
   const calls: ChatToolCall[] = [];
   let match: RegExpExecArray | null;
   let i = 0;
+  const regex = new RegExp(INLINE_FUNCTION_CALL_REGEX);
   while ((match = regex.exec(text)) !== null) {
     calls.push({ id: `recovered-${Date.now()}-${i++}`, name: match[1], arguments: match[2] });
   }
   return calls;
+}
+
+function stripInlineFunctionCalls(text: string): string {
+  return text.replace(new RegExp(INLINE_FUNCTION_CALL_REGEX), "").trim();
 }
 
 export async function chatComplete(messages: ChatMessage[], tools?: ToolDefinition[]): Promise<ChatResult> {
@@ -225,7 +233,7 @@ export async function chatComplete(messages: ChatMessage[], tools?: ToolDefiniti
     }
     if (err instanceof OpenAI.APIError && err.status === 400 && (err as { code?: string }).code === "tool_use_failed") {
       const failedGeneration = (err as { error?: { failed_generation?: string } }).error?.failed_generation;
-      const recoveredCalls = typeof failedGeneration === "string" ? parseFailedGeneration(failedGeneration) : [];
+      const recoveredCalls = typeof failedGeneration === "string" ? extractInlineFunctionCalls(failedGeneration) : [];
       if (recoveredCalls.length > 0) {
         return {
           content: "",
@@ -244,13 +252,20 @@ export async function chatComplete(messages: ChatMessage[], tools?: ToolDefiniti
   const promptTokens = res.usage?.prompt_tokens ?? 0;
   const completionTokens = res.usage?.completion_tokens ?? 0;
   const choice = res.choices[0];
-  const toolCalls = choice?.message?.tool_calls
+  const structuredToolCalls = choice?.message?.tool_calls
     ?.filter((tc) => tc.type === "function")
     .map((tc) => ({ id: tc.id, name: tc.function.name, arguments: tc.function.arguments }));
 
+  const rawContent = choice?.message?.content ?? "";
+  // A veces Groq NO tira error: devuelve 200 con esta sintaxis cruda mezclada adentro del
+  // content normal. Si no se detecta acá, esto se manda tal cual al cliente por WhatsApp.
+  const inlineToolCalls = extractInlineFunctionCalls(rawContent);
+  const content = inlineToolCalls.length > 0 ? stripInlineFunctionCalls(rawContent) : rawContent;
+  const toolCalls = [...(structuredToolCalls ?? []), ...inlineToolCalls];
+
   return {
-    content: choice?.message?.content ?? "",
-    toolCalls: toolCalls?.length ? toolCalls : undefined,
+    content,
+    toolCalls: toolCalls.length ? toolCalls : undefined,
     promptTokens,
     completionTokens,
     totalTokens: promptTokens + completionTokens,
