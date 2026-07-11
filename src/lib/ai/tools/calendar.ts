@@ -24,25 +24,47 @@ async function getConnectedIntegration(companyId: string): Promise<Integration |
   return integration?.status === "CONNECTED" ? integration : null;
 }
 
-/** Company.businessHours es Json? sin forma estricta en el resto del código; asumimos
- * { start: "09:00", end: "18:00" } si existe, si no un horario amplio por defecto. */
-function parseBusinessHours(raw: unknown): { startHour: number; endHour: number } {
-  if (raw && typeof raw === "object") {
-    const bh = raw as { start?: string; end?: string };
-    const startHour = bh.start ? Number(bh.start.split(":")[0]) : NaN;
-    const endHour = bh.end ? Number(bh.end.split(":")[0]) : NaN;
-    if (!Number.isNaN(startHour) && !Number.isNaN(endHour)) return { startHour, endHour };
-  }
-  return { startHour: 9, endHour: 18 };
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const DAY_LABELS: Record<string, string> = {
+  mon: "lunes",
+  tue: "martes",
+  wed: "miércoles",
+  thu: "jueves",
+  fri: "viernes",
+  sat: "sábado",
+  sun: "domingo",
+};
+const DEFAULT_WORK_DAYS = ["mon", "tue", "wed", "thu", "fri"];
+
+function daysLabel(days: string[]): string {
+  return days.map((d) => DAY_LABELS[d] ?? d).join(", ");
 }
 
-/** `value` viene SIN offset de zona (ej. "2026-07-12T15:00:00"): se interpreta como hora local
- * de la empresa, nunca como UTC ni como hora del servidor. */
-function parseLocalDateTime(value: string, timezone: string): { utcDate: Date; hour: number } {
+/** Company.businessHours lo guarda /settings como { open: "09:00", close: "18:00", days: [...] }
+ * (ver src/lib/actions/settings.ts) — si no está configurado, un horario amplio de lunes a
+ * viernes por defecto. */
+function parseBusinessHours(raw: unknown): { startHour: number; endHour: number; days: string[] } {
+  if (raw && typeof raw === "object") {
+    const bh = raw as { open?: string; close?: string; days?: string[] };
+    const startHour = bh.open ? Number(bh.open.split(":")[0]) : NaN;
+    const endHour = bh.close ? Number(bh.close.split(":")[0]) : NaN;
+    const days = Array.isArray(bh.days) && bh.days.length > 0 ? bh.days : DEFAULT_WORK_DAYS;
+    if (!Number.isNaN(startHour) && !Number.isNaN(endHour)) return { startHour, endHour, days };
+  }
+  return { startHour: 9, endHour: 18, days: DEFAULT_WORK_DAYS };
+}
+
+/** `value` viene SIN offset de zona (ej. "2026-07-12T15:00:00"): se interpreta como hora/día
+ * local de la empresa, nunca como UTC ni como hora del servidor. El día de la semana se calcula
+ * directo de los componentes de la fecha (sin pasar por zona horaria), porque una fecha
+ * calendario ("2026-07-12") es lunes/martes/etc. independientemente de en qué zona se lea. */
+function parseLocalDateTime(value: string, timezone: string): { utcDate: Date; hour: number; dayKey: string } {
   const utcDate = fromZonedTime(value, timezone);
-  const timePart = value.split("T")[1] ?? "00:00";
+  const [datePart, timePart = "00:00"] = value.split("T");
   const hour = Number(timePart.split(":")[0]) || 0;
-  return { utcDate, hour };
+  const [y, m, d] = datePart.split("-").map(Number);
+  const dayKey = DAY_KEYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  return { utcDate, hour, dayKey };
 }
 
 async function findLocalConflict(companyId: string, startUtc: Date, endUtc: Date, excludeAppointmentId?: string) {
@@ -63,10 +85,14 @@ async function isSlotAvailable(params: {
   startUtc: Date;
   endUtc: Date;
   hour: number;
+  dayKey: string;
   businessHours: unknown;
   excludeAppointmentId?: string;
 }): Promise<{ available: boolean; reason?: string }> {
-  const { startHour, endHour } = parseBusinessHours(params.businessHours);
+  const { startHour, endHour, days } = parseBusinessHours(params.businessHours);
+  if (!days.includes(params.dayKey)) {
+    return { available: false, reason: `no trabajamos ese día (${DAY_LABELS[params.dayKey] ?? params.dayKey}); trabajamos: ${daysLabel(days)}` };
+  }
   if (params.hour < startHour || params.hour >= endHour) {
     return { available: false, reason: `fuera de horario de atención (${startHour}:00 a ${endHour}:00)` };
   }
@@ -86,34 +112,47 @@ async function isSlotAvailable(params: {
   return { available: true };
 }
 
-/** Escanea el mismo día calendario (en incrementos de 30min dentro del horario de atención)
- * buscando hasta 3 horarios libres, para ofrecer alternativas cuando el pedido original choca. */
+/** Escanea hasta 14 días calendario hacia adelante desde `fromDateStr` (saltando los días que no
+ * son laborales), buscando hasta 3 horarios libres, para ofrecer alternativas reales cuando el
+ * pedido original choca — ya sea por horario ocupado o por caer en un día que no se trabaja. */
 async function findAlternatives(params: {
   integration: Integration;
   companyId: string;
-  dateStr: string;
+  fromDateStr: string;
   durationMinutes: number;
   timezone: string;
   businessHours: unknown;
 }): Promise<string[]> {
-  const { startHour, endHour } = parseBusinessHours(params.businessHours);
+  const { startHour, endHour, days } = parseBusinessHours(params.businessHours);
   const alternatives: string[] = [];
 
-  for (let hour = startHour; hour < endHour && alternatives.length < 3; hour++) {
-    for (const minute of [0, 30]) {
-      if (alternatives.length >= 3) break;
-      const candidateLocal = `${params.dateStr}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`;
-      const { utcDate: startUtc } = parseLocalDateTime(candidateLocal, params.timezone);
-      const endUtc = new Date(startUtc.getTime() + params.durationMinutes * 60000);
-      const check = await isSlotAvailable({
-        integration: params.integration,
-        companyId: params.companyId,
-        startUtc,
-        endUtc,
-        hour,
-        businessHours: params.businessHours,
-      });
-      if (check.available) alternatives.push(candidateLocal);
+  const [y0, m0, d0] = params.fromDateStr.split("-").map(Number);
+  const baseUtcMidnight = Date.UTC(y0, m0 - 1, d0);
+
+  for (let dayOffset = 0; dayOffset < 14 && alternatives.length < 3; dayOffset++) {
+    const dayDate = new Date(baseUtcMidnight + dayOffset * 86_400_000);
+    const dayKey = DAY_KEYS[dayDate.getUTCDay()];
+    if (!days.includes(dayKey)) continue;
+
+    const candidateDateStr = `${dayDate.getUTCFullYear()}-${String(dayDate.getUTCMonth() + 1).padStart(2, "0")}-${String(dayDate.getUTCDate()).padStart(2, "0")}`;
+
+    for (let hour = startHour; hour < endHour && alternatives.length < 3; hour++) {
+      for (const minute of [0, 30]) {
+        if (alternatives.length >= 3) break;
+        const candidateLocal = `${candidateDateStr}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`;
+        const { utcDate: startUtc, hour: slotHour, dayKey: slotDayKey } = parseLocalDateTime(candidateLocal, params.timezone);
+        const endUtc = new Date(startUtc.getTime() + params.durationMinutes * 60000);
+        const check = await isSlotAvailable({
+          integration: params.integration,
+          companyId: params.companyId,
+          startUtc,
+          endUtc,
+          hour: slotHour,
+          dayKey: slotDayKey,
+          businessHours: params.businessHours,
+        });
+        if (check.available) alternatives.push(candidateLocal);
+      }
     }
   }
   return alternatives;
@@ -160,16 +199,16 @@ export const checkAvailabilityTool: ToolDefinition = {
       if (!startsAt) return { error: "Falta la fecha/hora a chequear." };
       const durationMinutes = Number(args.durationMinutes) || DEFAULT_DURATION_MINUTES;
 
-      const { utcDate: startUtc, hour } = parseLocalDateTime(startsAt, ctx.timezone);
+      const { utcDate: startUtc, hour, dayKey } = parseLocalDateTime(startsAt, ctx.timezone);
       const endUtc = new Date(startUtc.getTime() + durationMinutes * 60000);
 
-      const check = await isSlotAvailable({ integration, companyId: ctx.companyId, startUtc, endUtc, hour, businessHours: ctx.businessHours });
+      const check = await isSlotAvailable({ integration, companyId: ctx.companyId, startUtc, endUtc, hour, dayKey, businessHours: ctx.businessHours });
       if (check.available) return { available: true, startsAt };
 
       const alternatives = await findAlternatives({
         integration,
         companyId: ctx.companyId,
-        dateStr: startsAt.split("T")[0],
+        fromDateStr: startsAt.split("T")[0],
         durationMinutes,
         timezone: ctx.timezone,
         businessHours: ctx.businessHours,
@@ -208,15 +247,15 @@ export const bookAppointmentTool: ToolDefinition = {
       const durationMinutes = Number(args.durationMinutes) || DEFAULT_DURATION_MINUTES;
       const notes = args.notes ? String(args.notes) : undefined;
 
-      const { utcDate: startUtc, hour } = parseLocalDateTime(startsAt, ctx.timezone);
+      const { utcDate: startUtc, hour, dayKey } = parseLocalDateTime(startsAt, ctx.timezone);
       const endUtc = new Date(startUtc.getTime() + durationMinutes * 60000);
 
-      const check = await isSlotAvailable({ integration, companyId: ctx.companyId, startUtc, endUtc, hour, businessHours: ctx.businessHours });
+      const check = await isSlotAvailable({ integration, companyId: ctx.companyId, startUtc, endUtc, hour, dayKey, businessHours: ctx.businessHours });
       if (!check.available) {
         const alternatives = await findAlternatives({
           integration,
           companyId: ctx.companyId,
-          dateStr: startsAt.split("T")[0],
+          fromDateStr: startsAt.split("T")[0],
           durationMinutes,
           timezone: ctx.timezone,
           businessHours: ctx.businessHours,
@@ -350,7 +389,7 @@ export const rescheduleAppointmentTool: ToolDefinition = {
       const durationMinutes =
         Number(args.durationMinutes) || Math.round((appointment.endsAt.getTime() - appointment.startsAt.getTime()) / 60000);
 
-      const { utcDate: newStartUtc, hour } = parseLocalDateTime(newStartsAt, ctx.timezone);
+      const { utcDate: newStartUtc, hour, dayKey } = parseLocalDateTime(newStartsAt, ctx.timezone);
       const newEndUtc = new Date(newStartUtc.getTime() + durationMinutes * 60000);
 
       const check = await isSlotAvailable({
@@ -359,6 +398,7 @@ export const rescheduleAppointmentTool: ToolDefinition = {
         startUtc: newStartUtc,
         endUtc: newEndUtc,
         hour,
+        dayKey,
         businessHours: ctx.businessHours,
         excludeAppointmentId: appointment.id,
       });
@@ -366,7 +406,7 @@ export const rescheduleAppointmentTool: ToolDefinition = {
         const alternatives = await findAlternatives({
           integration,
           companyId: ctx.companyId,
-          dateStr: newStartsAt.split("T")[0],
+          fromDateStr: newStartsAt.split("T")[0],
           durationMinutes,
           timezone: ctx.timezone,
           businessHours: ctx.businessHours,

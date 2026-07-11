@@ -74,6 +74,20 @@ export function CompanySettingsForm({ company }: { company: Company }) {
       </div>
 
       <div className="flex flex-col gap-1.5">
+        <Label htmlFor="staffPhoneNumbers">Números autorizados para acciones</Label>
+        <Input
+          id="staffPhoneNumbers"
+          name="staffPhoneNumbers"
+          defaultValue={company.staffPhoneNumbers ?? ""}
+          placeholder="Ej: 5493511234567, 5493519876543"
+        />
+        <p className="text-xs text-muted-foreground">
+          Teléfonos (con código de país, separados por coma) autorizados a pedirle al agente que modifique
+          stock u otras acciones administrativas — para que un cliente no pueda hacerlo por accidente.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="outOfHoursMessage">Mensaje fuera de horario</Label>
         <Textarea
           id="outOfHoursMessage"

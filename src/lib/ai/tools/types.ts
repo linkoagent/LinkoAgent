@@ -11,6 +11,11 @@ export interface ToolExecutionContext {
    * y devuelven un error legible en vez de intentar escribir con un customerId inexistente. */
   customerId: string | null;
   conversationId: string | null;
+  /** Teléfono de quien está escribiendo (Customer.phone/channelUserId), null en el chat de prueba. */
+  customerPhone: string | null;
+  /** Company.staffPhoneNumbers ya separado en lista, para que los tools administrativos (ej.
+   * update_stock) chequeen si customerPhone es del dueño/staff antes de ejecutar. */
+  staffPhoneNumbers: string[];
   timezone: string;
   /** Company.businessHours (Json?, sin forma estricta en el resto del código). */
   businessHours: unknown;

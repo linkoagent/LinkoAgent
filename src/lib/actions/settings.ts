@@ -23,6 +23,12 @@ export async function updateCompanySettings(formData: FormData) {
   const openTime = String(formData.get("openTime") ?? "09:00");
   const closeTime = String(formData.get("closeTime") ?? "18:00");
   const activeDays = DAY_KEYS.filter((d) => formData.get(`day_${d}`) === "on");
+  const staffPhoneNumbers =
+    String(formData.get("staffPhoneNumbers") ?? "")
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .join(",") || null;
 
   if (!name) return;
 
@@ -35,6 +41,7 @@ export async function updateCompanySettings(formData: FormData) {
       timezone,
       outOfHoursMessage,
       businessHours: { open: openTime, close: closeTime, days: activeDays },
+      staffPhoneNumbers,
     },
   });
 

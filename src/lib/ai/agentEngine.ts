@@ -44,13 +44,18 @@ export async function runAgentOnMessage(params: {
   customerMessage: string;
   customerId?: string;
   conversationId?: string;
+  customerPhone?: string;
 }): Promise<AgentRunResult> {
-  const { agent, knowledgeChunks, history, customerMessage, customerId, conversationId } = params;
+  const { agent, knowledgeChunks, history, customerMessage, customerId, conversationId, customerPhone } = params;
 
   const company = await prisma.company.findUniqueOrThrow({
     where: { id: agent.companyId },
-    select: { timezone: true, businessHours: true },
+    select: { timezone: true, businessHours: true, staffPhoneNumbers: true },
   });
+  const staffPhoneNumbers = (company.staffPhoneNumbers ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
 
   const tools = await getToolsForAgent(agent);
   const systemPrompt = buildSystemPrompt(agent, knowledgeChunks, company.timezone, tools.length > 0);
@@ -75,6 +80,8 @@ export async function runAgentOnMessage(params: {
           agentId: agent.id,
           customerId: customerId ?? null,
           conversationId: conversationId ?? null,
+          customerPhone: customerPhone ?? null,
+          staffPhoneNumbers,
           timezone: company.timezone,
           businessHours: company.businessHours,
         },

@@ -7,6 +7,8 @@ import {
   Radio,
   Gauge,
   Coins,
+  CalendarCheck,
+  Mic,
 } from "lucide-react";
 import { requireCompanyContext } from "@/lib/tenant";
 import { getDashboardData, formatSeconds } from "@/lib/metrics";
@@ -37,6 +39,8 @@ export default async function DashboardPage() {
         <MetricCard label="Tiempo prom. de respuesta" value={formatSeconds(data.frtSeconds)} icon={Clock} />
         <MetricCard label="% respondido por IA" value={`${data.aiSharePct}%`} icon={Bot} accent="primary" />
         <MetricCard label="Leads generados" value={String(data.leadsCount)} icon={Users} accent="star" />
+        <MetricCard label="Turnos reservados (14 días)" value={String(data.appointmentsCount)} icon={CalendarCheck} accent="success" />
+        <MetricCard label="Audios procesados (14 días)" value={String(data.voiceMessagesCount)} icon={Mic} accent="primary" />
         <MetricCard
           label="Canales conectados"
           value={`${data.connectedChannelsCount}/${data.channels.length || 0}`}

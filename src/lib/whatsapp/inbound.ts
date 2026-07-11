@@ -182,6 +182,7 @@ export async function processInboundWhatsAppMessage({
       customerMessage: text,
       customerId: customer.id,
       conversationId: conversation.id,
+      customerPhone: fromPhone,
     });
   } catch (err) {
     if (err instanceof RateLimitError) {

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Inbox, Bot, BookOpen, Radio, Plug, Users, BarChart3, Gauge, Settings, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Inbox, Bot, BookOpen, Radio, Plug, Package, Users, BarChart3, Gauge, Settings, ShieldCheck } from "lucide-react";
 import type { Role } from "@prisma/client";
 
 export interface NavItem {
@@ -15,6 +15,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/knowledge", label: "Base de conocimiento", icon: BookOpen, roles: ["SUPER_ADMIN", "COMPANY_ADMIN"] },
   { href: "/channels", label: "Canales", icon: Radio, roles: ["SUPER_ADMIN", "COMPANY_ADMIN"] },
   { href: "/integrations", label: "Integraciones", icon: Plug, roles: ["SUPER_ADMIN", "COMPANY_ADMIN"] },
+  { href: "/products", label: "Productos", icon: Package, roles: ["SUPER_ADMIN", "COMPANY_ADMIN"] },
   { href: "/customers", label: "Clientes", icon: Users, roles: ["SUPER_ADMIN", "COMPANY_ADMIN", "AGENT_HUMAN"] },
   { href: "/metrics", label: "Métricas", icon: BarChart3, roles: ["SUPER_ADMIN", "COMPANY_ADMIN"] },
   { href: "/usage", label: "Uso y plan", icon: Gauge, roles: ["SUPER_ADMIN", "COMPANY_ADMIN"] },

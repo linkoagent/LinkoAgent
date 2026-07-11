@@ -152,6 +152,10 @@ model Company {
   timezone          String   @default("America/Argentina/Buenos_Aires")
   businessHours     Json?
   outOfHoursMessage String?
+  /// Teléfonos separados por coma, sin espacios, con código de país (ej. "5493511234567"),
+  /// autorizados a ejecutar acciones administrativas (hoy: update_stock) por WhatsApp — para que
+  /// un cliente cualquiera no pueda modificar el inventario por accidente o a propósito.
+  staffPhoneNumbers String?
   isActive          Boolean  @default(true)
   createdAt         DateTime @default(now())
 
@@ -171,6 +175,7 @@ model Company {
   integrations     Integration[]
   webhookEvents    WebhookEvent[]
   appointments     Appointment[]
+  products         Product[]
 }
 
 model Membership {
@@ -572,6 +577,26 @@ model Appointment {
   // sigue disparando P2002 igual porque lee el código de error de Postgres, no el schema.
   @@index([companyId, startsAt])
   @@index([companyId, customerId, status])
+}
+
+/// Inventario simple. Se carga a mano en /products por ahora (sincronización con Google
+/// Sheets/Excel queda para una etapa posterior) — es la fuente que consultan/modifican los
+/// tools de stock del agente (check_stock/update_stock).
+model Product {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  sku       String?
+  stock     Int      @default(0)
+  price     Float?
+  unit      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([companyId, name])
 }
 
 model WebhookEvent {

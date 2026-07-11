@@ -28,6 +28,8 @@ export async function getDashboardData(companyId: string) {
     aiMessageCount,
     humanMessageCount,
     leadsCount,
+    appointmentsCount,
+    voiceMessagesCount,
     conversationsPerDayRaw,
     frtRaw,
   ] = await Promise.all([
@@ -43,6 +45,10 @@ export async function getDashboardData(companyId: string) {
     prisma.message.count({ where: { conversationId: { in: conversationIds }, sender: "AI" } }),
     prisma.message.count({ where: { conversationId: { in: conversationIds }, sender: "HUMAN" } }),
     prisma.lead.count({ where: { companyId } }),
+    prisma.appointment.count({ where: { companyId, status: "CONFIRMED", createdAt: { gte: rangeStart } } }),
+    prisma.message.count({
+      where: { conversationId: { in: conversationIds }, isVoiceMessage: true, createdAt: { gte: rangeStart } },
+    }),
     prisma.$queryRawUnsafe<{ day: Date; count: number }[]>(
       `SELECT DATE("createdAt") as day, COUNT(*)::int as count
        FROM "Conversation" WHERE "companyId" = $1 AND "createdAt" >= $2
@@ -94,6 +100,8 @@ export async function getDashboardData(companyId: string) {
     humanMessageCount,
     aiSharePct,
     leadsCount,
+    appointmentsCount,
+    voiceMessagesCount,
     conversationsPerDay,
     frtSeconds,
   };
