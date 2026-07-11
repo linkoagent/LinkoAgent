@@ -1,29 +1,10 @@
-import type { Product } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { normalizeWords } from "@/lib/ai/embeddings";
+import { getInventoryProviderForCompany } from "@/lib/inventory/providerFactory";
+import { matchInventoryItems } from "@/lib/inventory/matching";
 import { isStaff } from "./authz";
 import type { ToolDefinition } from "./types";
 
 function toolErrorResult(err: unknown): Record<string, unknown> {
   return { error: err instanceof Error ? err.message : "Error desconocido" };
-}
-
-/** Busca productos por nombre: primero substring (case-insensitive); si no hay resultados, cae
- * a superposición de palabras (mismo criterio que bestKnowledgeEntry en provider.ts). */
-async function findProductsByName(companyId: string, query: string): Promise<Product[]> {
-  const direct = await prisma.product.findMany({
-    where: { companyId, name: { contains: query, mode: "insensitive" } },
-    take: 5,
-  });
-  if (direct.length > 0) return direct;
-
-  const all = await prisma.product.findMany({ where: { companyId } });
-  const queryWords = new Set(normalizeWords(query));
-  const scored = all
-    .map((p) => ({ product: p, score: normalizeWords(p.name).filter((w) => queryWords.has(w)).length }))
-    .filter((s) => s.score > 0)
-    .sort((a, b) => b.score - a.score);
-  return scored.slice(0, 5).map((s) => s.product);
 }
 
 export const checkStockTool: ToolDefinition = {
@@ -41,13 +22,16 @@ export const checkStockTool: ToolDefinition = {
       const productName = String(args.productName ?? "");
       if (!productName) return { error: "Falta el nombre del producto." };
 
-      const matches = await findProductsByName(ctx.companyId, productName);
+      const provider = await getInventoryProviderForCompany(ctx.companyId);
+      const items = await provider.list();
+      const matches = matchInventoryItems(items, productName);
+
       if (matches.length === 0) return { found: 0 };
       if (matches.length > 1) {
-        return { found: matches.length, products: matches.map((p) => ({ name: p.name, stock: p.stock })) };
+        return { found: matches.length, products: matches.map((i) => ({ name: i.name, stock: i.stock })) };
       }
-      const [product] = matches;
-      return { found: 1, name: product.name, stock: product.stock, unit: product.unit };
+      const [item] = matches;
+      return { found: 1, name: item.name, stock: item.stock, unit: item.unit };
     } catch (err) {
       return toolErrorResult(err);
     }
@@ -80,14 +64,17 @@ export const updateStockTool: ToolDefinition = {
       if (!productName) return { error: "Falta el nombre del producto." };
       if (!Number.isFinite(newStock)) return { error: "La cantidad de stock no es un número válido." };
 
-      const matches = await findProductsByName(ctx.companyId, productName);
+      const provider = await getInventoryProviderForCompany(ctx.companyId);
+      const items = await provider.list();
+      const matches = matchInventoryItems(items, productName);
+
       if (matches.length === 0) return { found: 0 };
       if (matches.length > 1) {
-        return { found: matches.length, products: matches.map((p) => ({ name: p.name, stock: p.stock })) };
+        return { found: matches.length, products: matches.map((i) => ({ name: i.name, stock: i.stock })) };
       }
 
-      const [product] = matches;
-      const updated = await prisma.product.update({ where: { id: product.id }, data: { stock: Math.max(0, newStock) } });
+      const [item] = matches;
+      const updated = await provider.updateStock(item.id, newStock);
       return { updated: true, name: updated.name, stock: updated.stock };
     } catch (err) {
       return toolErrorResult(err);

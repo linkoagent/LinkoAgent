@@ -19,6 +19,12 @@ export interface ToolExecutionContext {
   timezone: string;
   /** Company.businessHours (Json?, sin forma estricta en el resto del código). */
   businessHours: unknown;
+  /** true solo cuando el contexto lo arma una ruta admin autenticada (ej. /api/products/nl-command),
+   * ya validada con requireRole. Hace que isStaff() pase sin necesidad de un customerPhone que
+   * matchee staffPhoneNumbers. Cualquier caller que la setee en true debe limitar `tools` a una
+   * familia acotada (ver nl-command: solo INVENTORY_TOOLS) — este flag habilita TODOS los tools
+   * mutantes que reciba runWithTools, no solo los de stock. */
+  isAdminSession?: boolean;
 }
 
 export interface ToolJsonSchema {

@@ -580,6 +580,10 @@ model Integration {
   status         IntegrationStatus @default(DISCONNECTED)
   accountEmail   String?
   calendarId     String            @default("primary")
+  /// Solo para provider = "GOOGLE_SHEETS". null hasta que el usuario pega la URL/ID de su Sheet
+  /// después de conectar por OAuth (a diferencia de Calendar, acá no hay un "primary" por defecto).
+  spreadsheetId  String?
+  sheetName      String?           @default("Hoja1")
   accessToken    String?
   refreshToken   String?
   tokenExpiresAt DateTime?
