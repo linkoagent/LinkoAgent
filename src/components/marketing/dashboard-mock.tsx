@@ -101,13 +101,11 @@ export function MarketingDashboardMock() {
                 <motion.div
                   key={i}
                   className={`flex-1 rounded-t ${i === 5 || i === 11 ? "bg-star" : "bg-primary"} opacity-90`}
-                  style={{ transformOrigin: "bottom" }}
+                  style={{ height: `${h}%`, transformOrigin: "bottom" }}
                   initial={{ scaleY: 0 }}
                   animate={inView ? { scaleY: 1 } : { scaleY: 0 }}
                   transition={{ duration: 0.5, delay: i * 0.04, ease: [0.21, 0.47, 0.32, 0.98] }}
-                >
-                  <div style={{ height: `${h}%` }} className="w-full rounded-t bg-inherit" />
-                </motion.div>
+                />
               ))}
             </div>
           </div>
