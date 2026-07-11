@@ -12,6 +12,7 @@ import {
   SummaryButton,
   NotesPanel,
   TagsPanel,
+  MessageCorrectionActions,
 } from "@/components/inbox/actions";
 
 const SENDER_LABEL: Record<string, string> = { CUSTOMER: "Cliente", AI: "IA", HUMAN: "Humano", SYSTEM: "Sistema" };
@@ -83,6 +84,7 @@ export default async function ConversationPage({ params }: { params: { conversat
                     ? ` · Confianza ${Math.round(m.transcriptionConfidence * 100)}%`
                     : ""}
                 </span>
+                {m.sender === "AI" && <MessageCorrectionActions messageId={m.id} />}
               </div>
             );
           })}

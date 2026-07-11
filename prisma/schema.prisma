@@ -124,6 +124,7 @@ model User {
   assignedConversations Conversation[]       @relation("AssignedHuman")
   handoffsReceived      HumanHandoff[]       @relation("HandoffToUser")
   passwordResetTokens   PasswordResetToken[]
+  messageCorrections    MessageCorrection[]
 }
 
 /// Token de un solo uso para "recuperar contraseña" e "invitación de equipo" (crear la
@@ -159,23 +160,24 @@ model Company {
   isActive          Boolean  @default(true)
   createdAt         DateTime @default(now())
 
-  memberships      Membership[]
-  subscription     Subscription?
-  channels         Channel[]
-  agents           Agent[]
-  knowledgeSources KnowledgeSource[]
-  customers        Customer[]
-  conversations    Conversation[]
-  leads            Lead[]
-  automations      Automation[]
-  tags             Tag[]
-  notes            Note[]
-  aiUsageLogs      AiUsageLog[]
-  auditLogs        AuditLog[]
-  integrations     Integration[]
-  webhookEvents    WebhookEvent[]
-  appointments     Appointment[]
-  products         Product[]
+  memberships        Membership[]
+  subscription       Subscription?
+  channels           Channel[]
+  agents             Agent[]
+  knowledgeSources   KnowledgeSource[]
+  customers          Customer[]
+  conversations      Conversation[]
+  leads              Lead[]
+  automations        Automation[]
+  tags               Tag[]
+  notes              Note[]
+  aiUsageLogs        AiUsageLog[]
+  auditLogs          AuditLog[]
+  integrations       Integration[]
+  webhookEvents      WebhookEvent[]
+  appointments       Appointment[]
+  products           Product[]
+  messageCorrections MessageCorrection[]
 }
 
 model Membership {
@@ -262,11 +264,12 @@ model Agent {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  company          Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  channels         AgentChannel[]
-  knowledgeSources AgentKnowledgeSource[]
-  conversations    Conversation[]
-  aiUsageLogs      AiUsageLog[]
+  company            Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  channels           AgentChannel[]
+  knowledgeSources   AgentKnowledgeSource[]
+  conversations      Conversation[]
+  aiUsageLogs        AiUsageLog[]
+  messageCorrections MessageCorrection[]
 
   @@index([companyId])
 }
@@ -365,16 +368,17 @@ model Conversation {
   createdAt         DateTime           @default(now())
   closedAt          DateTime?
 
-  company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  channel      Channel           @relation(fields: [channelId], references: [id])
-  customer     Customer          @relation(fields: [customerId], references: [id])
-  agent        Agent?            @relation(fields: [agentId], references: [id])
-  assignedUser User?             @relation("AssignedHuman", fields: [assignedUserId], references: [id])
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  channel      Channel             @relation(fields: [channelId], references: [id])
+  customer     Customer            @relation(fields: [customerId], references: [id])
+  agent        Agent?              @relation(fields: [agentId], references: [id])
+  assignedUser User?               @relation("AssignedHuman", fields: [assignedUserId], references: [id])
   messages     Message[]
   notes        Note[]
   tags         ConversationTag[]
   handoffs     HumanHandoff[]
   appointments Appointment[]
+  corrections  MessageCorrection[]
 
   @@index([companyId, status])
 }
@@ -401,9 +405,41 @@ model Message {
   transcriptionSummary    String?
   createdAt               DateTime   @default(now())
 
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  corrections  MessageCorrection[]
 
   @@index([conversationId])
+}
+
+enum CorrectionType {
+  CORRECTION
+  APPROVAL
+}
+
+/// Historial de aprendizaje: el dueño/equipo puede corregir una respuesta incorrecta de la IA
+/// (se guarda como conocimiento nuevo automáticamente, ver addFaqKnowledgeEntry en
+/// src/lib/ai/knowledge.ts) o aprobar una respuesta correcta (solo queda como registro de QA,
+/// no genera conocimiento nuevo — aprobar no "enseña" nada que el agente no supiera ya).
+model MessageCorrection {
+  id               String         @id @default(cuid())
+  companyId        String
+  agentId          String?
+  conversationId   String
+  messageId        String
+  type             CorrectionType
+  customerMessage  String
+  originalContent  String
+  correctedContent String?
+  createdByUserId  String
+  createdAt        DateTime       @default(now())
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  agent        Agent?       @relation(fields: [agentId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message      Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation(fields: [createdByUserId], references: [id])
+
+  @@index([companyId, createdAt])
 }
 
 // ---------- CRM (schema scaffold; UI simplificada en el MVP) ----------

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Send, Pause, Play, UserCheck, CheckCircle2, RotateCcw, Sparkles, Tag as TagIcon, X } from "lucide-react";
+import { Send, Pause, Play, UserCheck, CheckCircle2, RotateCcw, Sparkles, Tag as TagIcon, X, ThumbsUp, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import {
   removeTag,
   generateSummary,
 } from "@/lib/actions/conversations";
+import { correctMessage, approveMessage } from "@/lib/actions/corrections";
 
 export function ReplyBox({ conversationId }: { conversationId: string }) {
   const [text, setText] = useState("");
@@ -180,6 +181,73 @@ export function NotesPanel({
           Agregar
         </Button>
       </div>
+    </div>
+  );
+}
+
+export function MessageCorrectionActions({ messageId }: { messageId: string }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+  const [done, setDone] = useState<"approved" | "corrected" | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  if (done === "approved") {
+    return <p className="mt-1 text-[10.5px] text-success">✓ Aprobado</p>;
+  }
+  if (done === "corrected") {
+    return <p className="mt-1 text-[10.5px] text-success">✓ Corrección guardada, la IA ya la aprendió</p>;
+  }
+
+  if (editing) {
+    return (
+      <div className="mt-1 flex flex-col gap-1.5">
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="¿Cuál era la respuesta correcta?"
+          rows={2}
+          className="text-xs"
+        />
+        <div className="flex gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending || !text.trim()}
+            onClick={() =>
+              startTransition(async () => {
+                await correctMessage(messageId, text);
+                setDone("corrected");
+              })
+            }
+          >
+            Guardar corrección
+          </Button>
+          <Button size="sm" variant="ghost" disabled={pending} onClick={() => setEditing(false)}>
+            Cancelar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1 flex gap-1">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6"
+        aria-label="Aprobar respuesta"
+        disabled={pending}
+        onClick={() => startTransition(async () => {
+          await approveMessage(messageId);
+          setDone("approved");
+        })}
+      >
+        <ThumbsUp className="h-3 w-3" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Corregir respuesta" disabled={pending} onClick={() => setEditing(true)}>
+        <Pencil className="h-3 w-3" />
+      </Button>
     </div>
   );
 }

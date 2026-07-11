@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { GOOGLE_CALENDAR_PROVIDER } from "@/lib/googleCalendar/client";
 import { CALENDAR_TOOLS } from "./calendar";
 import { INVENTORY_TOOLS } from "./inventory";
+import { KNOWLEDGE_BASE_TOOLS } from "./knowledgeBase";
+import { BUSINESS_TOOLS } from "./business";
 import type { ToolDefinition } from "./types";
 
 /**
@@ -26,6 +28,15 @@ export async function getToolsForAgent(agent: Agent): Promise<ToolDefinition[]> 
   // siempre que el agente tenga acciones habilitadas. La mutación (update_stock) igual queda
   // bloqueada dentro del propio tool si quien escribe no es un teléfono de staff autorizado.
   tools.push(...INVENTORY_TOOLS);
+
+  // Igual que stock: vive 100% local (KnowledgeSource/KnowledgeChunk), sin integración externa.
+  // Las mutaciones (add/update/delete) quedan bloqueadas dentro de cada tool si quien escribe no
+  // es un teléfono de staff autorizado.
+  tools.push(...KNOWLEDGE_BASE_TOOLS);
+
+  // Envío de email (Resend, ya en modo mock si falta RESEND_API_KEY) — igual que el resto,
+  // bloqueado a staff dentro del propio tool.
+  tools.push(...BUSINESS_TOOLS);
 
   return tools;
 }

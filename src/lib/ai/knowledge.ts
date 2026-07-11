@@ -43,6 +43,18 @@ export async function processKnowledgeSource(sourceId: string) {
   }
 }
 
+/** Crea una fuente de conocimiento nueva (tipo FAQ), la vincula al agente y la procesa —
+ * usado tanto por el tool add_knowledge_fact como por la corrección de respuestas en el Inbox,
+ * para no duplicar el mismo create+link+process en dos lugares. */
+export async function addFaqKnowledgeEntry(params: { companyId: string; agentId: string; topic: string; content: string }) {
+  const source = await prisma.knowledgeSource.create({
+    data: { companyId: params.companyId, name: params.topic, type: "FAQ", content: params.content },
+  });
+  await prisma.agentKnowledgeSource.create({ data: { agentId: params.agentId, sourceId: source.id } });
+  await processKnowledgeSource(source.id);
+  return source;
+}
+
 export interface KnowledgeMatch {
   id: string;
   content: string;

@@ -1,7 +1,8 @@
 import type { Product } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeWords } from "@/lib/ai/embeddings";
-import type { ToolDefinition, ToolExecutionContext } from "./types";
+import { isStaff } from "./authz";
+import type { ToolDefinition } from "./types";
 
 function toolErrorResult(err: unknown): Record<string, unknown> {
   return { error: err instanceof Error ? err.message : "Error desconocido" };
@@ -23,11 +24,6 @@ async function findProductsByName(companyId: string, query: string): Promise<Pro
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score);
   return scored.slice(0, 5).map((s) => s.product);
-}
-
-function isStaff(ctx: ToolExecutionContext): boolean {
-  if (!ctx.customerPhone) return false;
-  return ctx.staffPhoneNumbers.includes(ctx.customerPhone);
 }
 
 export const checkStockTool: ToolDefinition = {
