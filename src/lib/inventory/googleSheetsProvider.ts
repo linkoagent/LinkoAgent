@@ -1,6 +1,6 @@
 import type { Integration } from "@prisma/client";
 import { GOOGLE_SHEETS_MOCK, getValidAccessToken, getValuesRange, updateRange } from "@/lib/googleSheets/client";
-import type { InventoryItem, InventoryProvider } from "./types";
+import type { InventoryItem, InventoryProvider, NewInventoryItem } from "./types";
 
 // Solo se usa en modo mock, para poder probar el comando de lenguaje natural de punta a punta
 // sin credenciales reales. Mutable por instancia (no por módulo) para que list()/updateStock()
@@ -70,5 +70,13 @@ export class GoogleSheetsInventoryProvider implements InventoryProvider {
     }
 
     return { ...item, stock: newStock };
+  }
+
+  // Alta de filas nuevas fuera de alcance a propósito en el MVP (ver plan): agregar productos
+  // nuevos se hace directo en la planilla, no desde acá.
+  async create(_item: NewInventoryItem): Promise<InventoryItem> {
+    throw new Error(
+      "No se pueden crear productos nuevos automáticamente en la planilla conectada. Agregalo directo como una fila nueva en la Google Sheet."
+    );
   }
 }

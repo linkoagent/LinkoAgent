@@ -77,8 +77,8 @@ export function NlCommandBox() {
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4">
       <p className="text-xs font-medium text-muted-foreground">
-        Escribí o grabá un mensaje (ej: "cuánta silla gris queda" o "actualizá la mesa ratona a 5") y la IA aplica el
-        cambio.
+        Escribí o grabá un mensaje (ej: "cuánta silla gris queda", "actualizá la mesa ratona a 5" o "agregá 3 sillas
+        azules a $8000") y la IA aplica el cambio.
       </p>
       <div className="flex gap-2">
         <Input

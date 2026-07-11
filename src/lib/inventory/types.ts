@@ -12,8 +12,19 @@ export interface InventoryItem {
   unit: string | null;
 }
 
+export interface NewInventoryItem {
+  name: string;
+  sku?: string | null;
+  stock: number;
+  price?: number | null;
+  unit?: string | null;
+}
+
 export interface InventoryProvider {
   readonly provider: string;
   list(): Promise<InventoryItem[]>;
   updateStock(id: string, newStock: number): Promise<InventoryItem>;
+  /** No todos los proveedores lo soportan (ej. Google Sheets, MVP deliberadamente sin alta de
+   * filas) — en ese caso rechaza con un mensaje legible en vez de intentar algo parcial. */
+  create(item: NewInventoryItem): Promise<InventoryItem>;
 }
