@@ -195,7 +195,19 @@ export async function processInboundWhatsAppMessage({
       await notifyHumanHandoff(conversation.id, reason);
       return { conversation, autoReplied: false as const };
     }
-    throw err;
+    // Cualquier otro error (ej. un bug en un tool, un fallo real de la API de Google/Groq no
+    // contemplado como RateLimitError) NO debe dejar al cliente sin ninguna respuesta — antes
+    // esto se relanzaba y rompía todo el webhook en silencio. Se loguea para poder diagnosticar
+    // y se deriva a un humano igual que los otros casos de fallo.
+    console.error("[inbound] Error inesperado generando la respuesta del agente:", err);
+    const reason = "El agente de IA tuvo un error inesperado generando la respuesta — revisar el canal.";
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { status: "HANDED_OFF", aiPaused: true },
+    });
+    await prisma.humanHandoff.create({ data: { conversationId: conversation.id, reason } });
+    await notifyHumanHandoff(conversation.id, reason);
+    return { conversation, autoReplied: false as const };
   }
 
   await prisma.message.create({

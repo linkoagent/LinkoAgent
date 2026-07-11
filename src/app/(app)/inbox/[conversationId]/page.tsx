@@ -37,7 +37,7 @@ export default async function ConversationPage({ params }: { params: { conversat
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-      <div className="flex flex-col rounded-xl border border-border bg-card">
+      <div className="flex h-[75vh] min-h-[520px] flex-col rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border p-4">
           <div>
             <h1 className="font-display text-base font-semibold text-foreground">
@@ -50,7 +50,7 @@ export default async function ConversationPage({ params }: { params: { conversat
           <Badge variant="outline">{CONVERSATION_STATUS_LABELS[conversation.status] ?? conversation.status}</Badge>
         </div>
 
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4" style={{ minHeight: 380, maxHeight: 560 }}>
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
           {conversation.messages.map((m) => {
             const isCustomer = m.sender === "CUSTOMER";
             return (
