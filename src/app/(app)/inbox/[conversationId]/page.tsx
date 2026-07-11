@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
-import { Mic } from "lucide-react";
 import { requireCompanyContext } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { CONVERSATION_STATUS_LABELS, CHANNEL_TYPE_LABELS } from "@/lib/plans";
-import { formatDateTime, cn, capitalizeLabel } from "@/lib/utils";
+import { capitalizeLabel } from "@/lib/utils";
 import {
   ReplyBox,
   AiPauseSwitch,
@@ -12,10 +11,8 @@ import {
   SummaryButton,
   NotesPanel,
   TagsPanel,
-  MessageCorrectionActions,
 } from "@/components/inbox/actions";
-
-const SENDER_LABEL: Record<string, string> = { CUSTOMER: "Cliente", AI: "IA", HUMAN: "Humano", SYSTEM: "Sistema" };
+import { ConversationMessages } from "@/components/inbox/conversation-messages";
 
 export default async function ConversationPage({ params }: { params: { conversationId: string } }) {
   const ctx = await requireCompanyContext();
@@ -50,48 +47,7 @@ export default async function ConversationPage({ params }: { params: { conversat
           <Badge variant="outline">{CONVERSATION_STATUS_LABELS[conversation.status] ?? conversation.status}</Badge>
         </div>
 
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
-          {conversation.messages.map((m) => {
-            const isCustomer = m.sender === "CUSTOMER";
-            return (
-              <div key={m.id} className={cn("flex flex-col", isCustomer ? "items-start" : "items-end")}>
-                <div
-                  className={cn(
-                    "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm",
-                    isCustomer
-                      ? "bg-secondary text-foreground"
-                      : m.sender === "AI"
-                        ? "bg-brand-button text-primary-foreground"
-                        : "bg-star/20 text-foreground"
-                  )}
-                >
-                  {m.isVoiceMessage && (
-                    <div className="mb-1 flex items-center gap-1.5 text-[10.5px] uppercase tracking-wide opacity-70">
-                      <Mic className="h-3 w-3" /> Audio transcripto
-                      {m.transcriptionLanguage ? ` · ${m.transcriptionLanguage}` : ""}
-                    </div>
-                  )}
-                  {m.content}
-                  {m.transcriptionSummary && (
-                    <p className="mt-1.5 border-t border-black/10 pt-1.5 text-xs italic opacity-80">
-                      Resumen: {m.transcriptionSummary}
-                    </p>
-                  )}
-                </div>
-                <span className="mt-1 text-[10.5px] text-muted-foreground">
-                  {SENDER_LABEL[m.sender]} · {formatDateTime(m.createdAt)}
-                  {m.isVoiceMessage && m.transcriptionConfidence != null
-                    ? ` · Confianza ${Math.round(m.transcriptionConfidence * 100)}%`
-                    : ""}
-                </span>
-                {m.sender === "AI" && <MessageCorrectionActions messageId={m.id} />}
-              </div>
-            );
-          })}
-          {conversation.messages.length === 0 && (
-            <p className="text-sm text-muted-foreground">Todavía no hay mensajes en esta conversación.</p>
-          )}
-        </div>
+        <ConversationMessages messages={conversation.messages} />
 
         <ReplyBox conversationId={conversation.id} />
       </div>
