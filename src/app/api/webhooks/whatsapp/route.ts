@@ -52,9 +52,11 @@ export async function POST(req: NextRequest) {
 
     const fromPhone: string = message.from;
     const fromName: string | undefined = value?.contacts?.[0]?.profile?.name;
-    const text: string = message.text?.body ?? "[mensaje no soportado en el MVP]";
 
-    await processInboundWhatsAppMessage({ channel, fromPhone, fromName, text, channelMessageId: message.id });
+    const audio = message.type === "audio" ? { mediaId: message.audio?.id as string, mimeType: message.audio?.mime_type as string } : undefined;
+    const text: string = message.text?.body ?? (audio ? "" : "[mensaje no soportado en el MVP]");
+
+    await processInboundWhatsAppMessage({ channel, fromPhone, fromName, text, audio, channelMessageId: message.id });
 
     return NextResponse.json({ ok: true });
   } catch (err) {

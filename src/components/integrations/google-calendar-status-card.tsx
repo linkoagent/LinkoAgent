@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { disconnectGoogleCalendarIntegration } from "@/lib/actions/integrations";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, capitalizeLabel } from "@/lib/utils";
 import type { Integration } from "@prisma/client";
 
 const STATUS_VARIANT = {
@@ -13,6 +13,11 @@ const STATUS_VARIANT = {
   DISCONNECTED: "outline",
   ERROR: "destructive",
 } as const;
+
+function calendarLabel(calendarId: string) {
+  if (calendarId === "primary") return "Calendario principal";
+  return capitalizeLabel(calendarId);
+}
 
 export function GoogleCalendarStatusCard({ integration }: { integration: Integration }) {
   const [pending, startTransition] = useTransition();
@@ -30,11 +35,13 @@ export function GoogleCalendarStatusCard({ integration }: { integration: Integra
       <dl className="grid grid-cols-2 gap-2 text-xs">
         <div>
           <dt className="text-muted-foreground">Calendario</dt>
-          <dd className="text-foreground">{integration.calendarId}</dd>
+          <dd className="text-foreground">{calendarLabel(integration.calendarId)}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground">Última sincronización</dt>
-          <dd className="text-foreground">{integration.lastSyncAt ? formatDateTime(integration.lastSyncAt) : "—"}</dd>
+          <dd className="text-foreground" suppressHydrationWarning>
+            {integration.lastSyncAt ? formatDateTime(integration.lastSyncAt) : "—"}
+          </dd>
         </div>
         <div className="col-span-2">
           <dt className="text-muted-foreground">Errores</dt>

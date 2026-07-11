@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getFilteredMetrics } from "@/lib/metrics";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { capitalizeLabel } from "@/lib/utils";
+import { CHANNEL_TYPE_LABELS } from "@/lib/plans";
 import { CheckCircle2, Users, XCircle, ListChecks } from "lucide-react";
 
 export default async function MetricsPage({
@@ -47,7 +48,7 @@ export default async function MetricsPage({
           <select id="channelId" name="channelId" defaultValue={searchParams.channelId ?? ""} className="h-9 rounded-lg border border-input bg-background px-2 text-sm">
             <option value="">Todos</option>
             {channels.map((c) => (
-              <option key={c.id} value={c.id}>{c.type}</option>
+              <option key={c.id} value={c.id}>{CHANNEL_TYPE_LABELS[c.type] ?? c.type}</option>
             ))}
           </select>
         </div>

@@ -68,6 +68,12 @@ export const AGENT_TYPE_LABELS: Record<string, string> = {
   PERSONALIZADO: "Personalizado",
 };
 
+export const CHANNEL_TYPE_LABELS: Record<string, string> = {
+  WHATSAPP: "WhatsApp",
+  INSTAGRAM: "Instagram",
+  MESSENGER: "Messenger",
+};
+
 export const CONVERSATION_STATUS_LABELS: Record<string, string> = {
   NEW: "Nuevo",
   OPEN: "Abierto",

@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
+import { Mic } from "lucide-react";
 import { requireCompanyContext } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
-import { CONVERSATION_STATUS_LABELS } from "@/lib/plans";
+import { CONVERSATION_STATUS_LABELS, CHANNEL_TYPE_LABELS } from "@/lib/plans";
 import { formatDateTime, cn, capitalizeLabel } from "@/lib/utils";
 import {
   ReplyBox,
@@ -42,7 +43,7 @@ export default async function ConversationPage({ params }: { params: { conversat
               {conversation.customer.name ?? conversation.customer.phone ?? "Cliente"}
             </h1>
             <p className="text-xs text-muted-foreground">
-              {conversation.channel.type} · {conversation.customer.phone}
+              {CHANNEL_TYPE_LABELS[conversation.channel.type] ?? conversation.channel.type} · {conversation.customer.phone}
             </p>
           </div>
           <Badge variant="outline">{CONVERSATION_STATUS_LABELS[conversation.status] ?? conversation.status}</Badge>
@@ -63,10 +64,24 @@ export default async function ConversationPage({ params }: { params: { conversat
                         : "bg-star/20 text-foreground"
                   )}
                 >
+                  {m.isVoiceMessage && (
+                    <div className="mb-1 flex items-center gap-1.5 text-[10.5px] uppercase tracking-wide opacity-70">
+                      <Mic className="h-3 w-3" /> Audio transcripto
+                      {m.transcriptionLanguage ? ` · ${m.transcriptionLanguage}` : ""}
+                    </div>
+                  )}
                   {m.content}
+                  {m.transcriptionSummary && (
+                    <p className="mt-1.5 border-t border-black/10 pt-1.5 text-xs italic opacity-80">
+                      Resumen: {m.transcriptionSummary}
+                    </p>
+                  )}
                 </div>
                 <span className="mt-1 text-[10.5px] text-muted-foreground">
                   {SENDER_LABEL[m.sender]} · {formatDateTime(m.createdAt)}
+                  {m.isVoiceMessage && m.transcriptionConfidence != null
+                    ? ` · Confianza ${Math.round(m.transcriptionConfidence * 100)}%`
+                    : ""}
                 </span>
               </div>
             );

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireCompanyContext } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
-import { CONVERSATION_STATUS_LABELS } from "@/lib/plans";
+import { CONVERSATION_STATUS_LABELS, CHANNEL_TYPE_LABELS } from "@/lib/plans";
 import { formatDateTime, capitalizeLabel } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -77,7 +77,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { tab?
                   {c.customer.name ?? c.customer.phone ?? "Cliente sin nombre"}
                 </div>
                 <div className="truncate text-xs text-muted-foreground">
-                  {c.channel.type} · {c.agent?.name ?? "Sin agente"} {c.assignedUser ? `· ${c.assignedUser.name}` : ""}
+                  {CHANNEL_TYPE_LABELS[c.channel.type] ?? c.channel.type} · {c.agent?.name ?? "Sin agente"} {c.assignedUser ? `· ${c.assignedUser.name}` : ""}
                 </div>
               </div>
             </div>

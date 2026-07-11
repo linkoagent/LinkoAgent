@@ -375,15 +375,26 @@ model Conversation {
 }
 
 model Message {
-  id               String     @id @default(cuid())
-  conversationId   String
-  sender           SenderType
-  content          String
-  channelMessageId String?
-  promptTokens     Int?
-  completionTokens Int?
-  costUsd          Float?
-  createdAt        DateTime   @default(now())
+  id                      String     @id @default(cuid())
+  conversationId          String
+  sender                  SenderType
+  /// Si es un mensaje de voz transcripto, content = el texto transcripto (así el resto del
+  /// pipeline de IA lo trata exactamente igual que un mensaje de texto, sin duplicar el dato).
+  content                 String
+  channelMessageId        String?
+  promptTokens            Int?
+  completionTokens        Int?
+  costUsd                 Float?
+  isVoiceMessage          Boolean    @default(false)
+  /// ID del media en la Graph API de Meta (no la URL prefirmada, que expira en minutos) — sirve
+  /// para volver a descargar el audio original mientras Meta lo conserve.
+  audioMediaId            String?
+  transcriptionLanguage   String?
+  /// Heurística 0-1 derivada de los log-probs de Whisper, no una probabilidad real de acierto.
+  transcriptionConfidence Float?
+  /// Solo se genera si la transcripción es larga (ver TRANSCRIPTION_SUMMARY_THRESHOLD).
+  transcriptionSummary    String?
+  createdAt               DateTime   @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 

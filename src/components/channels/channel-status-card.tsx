@@ -29,11 +29,15 @@ export function ChannelStatusCard({ channel }: { channel: Channel }) {
         </div>
         <div>
           <dt className="text-muted-foreground">Conectado desde</dt>
-          <dd className="text-foreground">{channel.connectedAt ? formatDateTime(channel.connectedAt) : "—"}</dd>
+          <dd className="text-foreground" suppressHydrationWarning>
+            {channel.connectedAt ? formatDateTime(channel.connectedAt) : "—"}
+          </dd>
         </div>
         <div>
           <dt className="text-muted-foreground">Último mensaje</dt>
-          <dd className="text-foreground">{channel.lastMessageAt ? formatDateTime(channel.lastMessageAt) : "—"}</dd>
+          <dd className="text-foreground" suppressHydrationWarning>
+            {channel.lastMessageAt ? formatDateTime(channel.lastMessageAt) : "—"}
+          </dd>
         </div>
         <div>
           <dt className="text-muted-foreground">Errores</dt>

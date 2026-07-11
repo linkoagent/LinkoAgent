@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireCompanyContext } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
+import { CHANNEL_TYPE_LABELS } from "@/lib/plans";
 import { Badge } from "@/components/ui/badge";
 
 export default async function CustomersPage() {
@@ -37,7 +38,7 @@ export default async function CustomersPage() {
             {customers.map((c) => (
               <tr key={c.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3 text-foreground">{c.name ?? c.phone ?? "Sin nombre"}</td>
-                <td className="px-4 py-3 text-muted-foreground">{c.channelType}</td>
+                <td className="px-4 py-3 text-muted-foreground">{CHANNEL_TYPE_LABELS[c.channelType] ?? c.channelType}</td>
                 <td className="px-4 py-3 text-muted-foreground">{formatDateTime(c.lastContactAt)}</td>
                 <td className="px-4 py-3">
                   {c.leads[0] ? <Badge variant="outline">{c.leads[0].stage}</Badge> : <span className="text-muted-foreground">—</span>}

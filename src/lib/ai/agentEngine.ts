@@ -86,6 +86,19 @@ export async function runAgentOnMessage(params: {
   return { ...result, shouldHandoff };
 }
 
+/** Resumen interno de un audio transcripto largo (no se le manda al cliente, es solo para que
+ * el equipo pueda escanear la conversación rápido en el Inbox sin leer la transcripción entera). */
+export async function summarizeVoiceTranscript(transcript: string): Promise<string> {
+  const result = await chatComplete([
+    {
+      role: "system",
+      content: "Resumí el siguiente audio transcripto de un cliente en 1-2 oraciones, en español, mencionando el pedido o consulta concreta.",
+    },
+    { role: "user", content: transcript },
+  ]);
+  return result.content;
+}
+
 export async function summarizeMessages(messages: Pick<Message, "sender" | "content">[]): Promise<string> {
   const transcript = messages
     .map((m) => `${m.sender === "CUSTOMER" ? "Cliente" : m.sender === "AI" ? "Agente IA" : m.sender === "HUMAN" ? "Agente humano" : "Sistema"}: ${m.content}`)
