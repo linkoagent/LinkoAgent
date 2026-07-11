@@ -1,10 +1,7 @@
 import { hasConnectedProvider } from "@/lib/agenda/providerFactory";
 import { checkAvailability, bookAppointment, cancelAppointment, rescheduleAppointment } from "@/lib/agenda/service";
+import { toolErrorResult } from "./errors";
 import type { ToolDefinition } from "./types";
-
-function toolErrorResult(err: unknown): Record<string, unknown> {
-  return { error: err instanceof Error ? err.message : "Error desconocido" };
-}
 
 /**
  * Estos tools son deliberadamente delgados: parsean los argumentos del modelo y delegan toda la
@@ -39,7 +36,7 @@ export const checkAvailabilityTool: ToolDefinition = {
 
       return await checkAvailability({ companyId: ctx.companyId, startsAt, durationMinutes });
     } catch (err) {
-      return toolErrorResult(err);
+      return toolErrorResult("check_availability", err);
     }
   },
 };
@@ -79,7 +76,7 @@ export const bookAppointmentTool: ToolDefinition = {
         notes,
       });
     } catch (err) {
-      return toolErrorResult(err);
+      return toolErrorResult("book_appointment", err);
     }
   },
 };
@@ -104,7 +101,7 @@ export const cancelAppointmentTool: ToolDefinition = {
       const hint = args.startsAt ? String(args.startsAt) : undefined;
       return await cancelAppointment({ companyId: ctx.companyId, customerId: ctx.customerId, timezone: ctx.timezone, hint });
     } catch (err) {
-      return toolErrorResult(err);
+      return toolErrorResult("cancel_appointment", err);
     }
   },
 };
@@ -145,7 +142,7 @@ export const rescheduleAppointmentTool: ToolDefinition = {
         durationMinutes,
       });
     } catch (err) {
-      return toolErrorResult(err);
+      return toolErrorResult("reschedule_appointment", err);
     }
   },
 };

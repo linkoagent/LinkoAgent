@@ -1,10 +1,7 @@
 import { sendEmail } from "@/lib/email/client";
 import { isStaff } from "./authz";
+import { toolErrorResult } from "./errors";
 import type { ToolDefinition } from "./types";
-
-function toolErrorResult(err: unknown): Record<string, unknown> {
-  return { error: err instanceof Error ? err.message : "Error desconocido" };
-}
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -45,7 +42,7 @@ export const sendEmailTool: ToolDefinition = {
       }
       return { sent: true, to, mocked: result.mocked };
     } catch (err) {
-      return toolErrorResult(err);
+      return toolErrorResult("send_email", err);
     }
   },
 };

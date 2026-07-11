@@ -3,11 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { addFaqKnowledgeEntry, processKnowledgeSource } from "@/lib/ai/knowledge";
 import { normalizeWords } from "@/lib/ai/embeddings";
 import { isStaff } from "./authz";
+import { toolErrorResult } from "./errors";
 import type { ToolDefinition } from "./types";
-
-function toolErrorResult(err: unknown): Record<string, unknown> {
-  return { error: err instanceof Error ? err.message : "Error desconocido" };
-}
 
 /** Busca, entre las fuentes de conocimiento vinculadas a ESTE agente, las que matchean un tema
  * por nombre (substring) o, si no hay match directo, por superposición de palabras en nombre o
@@ -61,7 +58,7 @@ export const addKnowledgeFactTool: ToolDefinition = {
 
       return { added: true, topic };
     } catch (err) {
-      return toolErrorResult(err);
+      return toolErrorResult("add_knowledge_fact", err);
     }
   },
 };
@@ -100,7 +97,7 @@ export const updateKnowledgeFactTool: ToolDefinition = {
 
       return { updated: true, topic: source.name };
     } catch (err) {
-      return toolErrorResult(err);
+      return toolErrorResult("update_knowledge_fact", err);
     }
   },
 };
@@ -136,7 +133,7 @@ export const deleteKnowledgeFactTool: ToolDefinition = {
 
       return { deleted: true, topic: source.name };
     } catch (err) {
-      return toolErrorResult(err);
+      return toolErrorResult("delete_knowledge_fact", err);
     }
   },
 };

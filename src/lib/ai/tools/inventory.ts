@@ -1,11 +1,8 @@
 import { getInventoryProviderForCompany } from "@/lib/inventory/providerFactory";
 import { matchInventoryItems } from "@/lib/inventory/matching";
 import { isStaff } from "./authz";
+import { toolErrorResult } from "./errors";
 import type { ToolDefinition } from "./types";
-
-function toolErrorResult(err: unknown): Record<string, unknown> {
-  return { error: err instanceof Error ? err.message : "Error desconocido" };
-}
 
 export const checkStockTool: ToolDefinition = {
   name: "check_stock",
@@ -33,7 +30,7 @@ export const checkStockTool: ToolDefinition = {
       const [item] = matches;
       return { found: 1, name: item.name, stock: item.stock, unit: item.unit };
     } catch (err) {
-      return toolErrorResult(err);
+      return toolErrorResult("check_stock", err);
     }
   },
 };
@@ -77,7 +74,7 @@ export const updateStockTool: ToolDefinition = {
       const updated = await provider.updateStock(item.id, newStock);
       return { updated: true, name: updated.name, stock: updated.stock };
     } catch (err) {
-      return toolErrorResult(err);
+      return toolErrorResult("update_stock", err);
     }
   },
 };
