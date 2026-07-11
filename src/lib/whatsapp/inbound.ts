@@ -139,6 +139,8 @@ export async function processInboundWhatsAppMessage({
       knowledgeChunks,
       history: history.slice(0, -1),
       customerMessage: text,
+      customerId: customer.id,
+      conversationId: conversation.id,
     });
   } catch (err) {
     if (err instanceof RateLimitError) {

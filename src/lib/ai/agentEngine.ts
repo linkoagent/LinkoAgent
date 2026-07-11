@@ -1,13 +1,23 @@
 import type { Agent, Message } from "@prisma/client";
+import { formatInTimeZone } from "date-fns-tz";
+import { es } from "date-fns/locale";
+import { prisma } from "@/lib/prisma";
 import { chatComplete, type ChatMessage, type ChatResult } from "@/lib/ai/provider";
+import { runWithTools } from "@/lib/ai/toolRuntime";
+import { getToolsForAgent } from "@/lib/ai/tools/registry";
 import { shouldHandoffToHuman } from "@/lib/ai/heuristics";
 import { AGENT_TYPE_LABELS } from "@/lib/plans";
 import type { KnowledgeMatch } from "@/lib/ai/knowledge";
 
-function buildSystemPrompt(agent: Agent, knowledgeChunks: KnowledgeMatch[]) {
+function buildSystemPrompt(agent: Agent, knowledgeChunks: KnowledgeMatch[], timezone: string, hasActions: boolean) {
   const knowledgeBlock = knowledgeChunks.length
     ? `CONOCIMIENTO:\n${knowledgeChunks.map((c, i) => `[${i + 1}] ${c.content}`).join("\n\n")}`
     : null;
+
+  // Imprescindible para que el modelo resuelva "mañana"/"el viernes que viene" correctamente
+  // cuando usa los tools de turnos — sin esto no tiene forma de saber qué día es hoy.
+  const now = formatInTimeZone(new Date(), timezone, "EEEE d 'de' MMMM 'de' yyyy, HH:mm", { locale: es });
+  const dateContext = `Fecha y hora actual: ${now} (zona horaria ${timezone}). Cuando uses tools de turnos, resolvé siempre fechas relativas ("mañana", "el viernes que viene") contra esta fecha, y pasá el parámetro de fecha/hora en formato YYYY-MM-DDTHH:mm:ss, sin offset de zona (se interpreta como hora local de la empresa).`;
 
   return [
     `Sos "${agent.name}", un agente de IA de tipo "${AGENT_TYPE_LABELS[agent.type] ?? agent.type}" que atiende por chat en nombre de una empresa.`,
@@ -16,6 +26,7 @@ function buildSystemPrompt(agent: Agent, knowledgeChunks: KnowledgeMatch[]) {
     `Instrucciones específicas: ${agent.instructions}`,
     agent.handoffRules ? `Reglas de derivación a un humano: ${agent.handoffRules}` : null,
     knowledgeBlock,
+    hasActions ? dateContext : null,
     `Respondé siempre en ${agent.language === "es" ? "español rioplatense" : agent.language}, de forma breve, clara y cordial. Si no tenés información suficiente para responder con precisión, decilo con honestidad en vez de inventar datos, y proponé derivar a una persona del equipo.`,
   ]
     .filter(Boolean)
@@ -31,10 +42,18 @@ export async function runAgentOnMessage(params: {
   knowledgeChunks: KnowledgeMatch[];
   history: Pick<Message, "sender" | "content">[];
   customerMessage: string;
+  customerId?: string;
+  conversationId?: string;
 }): Promise<AgentRunResult> {
-  const { agent, knowledgeChunks, history, customerMessage } = params;
+  const { agent, knowledgeChunks, history, customerMessage, customerId, conversationId } = params;
 
-  const systemPrompt = buildSystemPrompt(agent, knowledgeChunks);
+  const company = await prisma.company.findUniqueOrThrow({
+    where: { id: agent.companyId },
+    select: { timezone: true, businessHours: true },
+  });
+
+  const tools = await getToolsForAgent(agent);
+  const systemPrompt = buildSystemPrompt(agent, knowledgeChunks, company.timezone, tools.length > 0);
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
@@ -47,7 +66,21 @@ export async function runAgentOnMessage(params: {
     { role: "user", content: customerMessage },
   ];
 
-  const result = await chatComplete(messages);
+  const result = tools.length
+    ? await runWithTools({
+        messages,
+        tools,
+        context: {
+          companyId: agent.companyId,
+          agentId: agent.id,
+          customerId: customerId ?? null,
+          conversationId: conversationId ?? null,
+          timezone: company.timezone,
+          businessHours: company.businessHours,
+        },
+      })
+    : await chatComplete(messages);
+
   const shouldHandoff = shouldHandoffToHuman(customerMessage, agent.handoffRules);
 
   return { ...result, shouldHandoff };

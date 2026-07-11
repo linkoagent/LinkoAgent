@@ -28,6 +28,7 @@ export function AgentForm({
   knowledgeSources,
   selectedChannelIds = [],
   selectedSourceIds = [],
+  calendarConnected = false,
   action,
   submitLabel = "Guardar agente",
 }: {
@@ -36,6 +37,7 @@ export function AgentForm({
   knowledgeSources: KnowledgeSource[];
   selectedChannelIds?: string[];
   selectedSourceIds?: string[];
+  calendarConnected?: boolean;
   action: (formData: FormData) => void | Promise<void>;
   submitLabel?: string;
 }) {
@@ -119,6 +121,18 @@ export function AgentForm({
           <Switch id="isActive" name="isActive" defaultChecked={agent?.isActive ?? true} />
           <Label htmlFor="isActive">Agente activo</Label>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5 rounded-lg border border-border p-4">
+        <div className="flex items-center gap-2">
+          <Switch id="actionsEnabled" name="actionsEnabled" defaultChecked={agent?.actionsEnabled ?? false} disabled={!calendarConnected} />
+          <Label htmlFor="actionsEnabled">Permitir que este agente reserve/cancele/reprograme turnos</Label>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {calendarConnected
+            ? "Usa Google Calendar para consultar disponibilidad y confirmar turnos automáticamente."
+            : "Conectá Google Calendar en Integraciones para poder activar esto."}
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">

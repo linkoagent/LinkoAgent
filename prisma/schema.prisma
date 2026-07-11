@@ -96,10 +96,21 @@ enum Priority {
   URGENT
 }
 
+enum IntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  ERROR
+}
+
+enum AppointmentStatus {
+  CONFIRMED
+  CANCELLED
+}
+
 // ---------- Core / tenancy ----------
 
 model User {
-  id              String    @id @default(cuid())
+  id                  String    @id @default(cuid())
   name                String
   email               String    @unique
   passwordHash        String
@@ -109,9 +120,9 @@ model User {
 
   memberships           Membership[]
   notes                 Note[]
-  auditLogs              AuditLog[]
-  assignedConversations Conversation[]  @relation("AssignedHuman")
-  handoffsReceived       HumanHandoff[] @relation("HandoffToUser")
+  auditLogs             AuditLog[]
+  assignedConversations Conversation[]       @relation("AssignedHuman")
+  handoffsReceived      HumanHandoff[]       @relation("HandoffToUser")
   passwordResetTokens   PasswordResetToken[]
 }
 
@@ -159,6 +170,7 @@ model Company {
   auditLogs        AuditLog[]
   integrations     Integration[]
   webhookEvents    WebhookEvent[]
+  appointments     Appointment[]
 }
 
 model Membership {
@@ -230,19 +242,20 @@ model Channel {
 }
 
 model Agent {
-  id           String    @id @default(cuid())
-  companyId    String
-  name         String
-  type         AgentType
-  objective    String?
-  tone         String?
-  instructions String
-  language     String    @default("es")
-  isActive     Boolean   @default(true)
-  activeHours  Json?
-  handoffRules String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  companyId      String
+  name           String
+  type           AgentType
+  objective      String?
+  tone           String?
+  instructions   String
+  language       String    @default("es")
+  isActive       Boolean   @default(true)
+  activeHours    Json?
+  handoffRules   String?
+  actionsEnabled Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   company          Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   channels         AgentChannel[]
@@ -295,13 +308,13 @@ model AgentKnowledgeSource {
 }
 
 model KnowledgeChunk {
-  id         String                       @id @default(cuid())
+  id         String                      @id @default(cuid())
   sourceId   String
   companyId  String
   content    String
-  tokenCount Int                          @default(0)
+  tokenCount Int                         @default(0)
   embedding  Unsupported("vector(768)")?
-  createdAt  DateTime                     @default(now())
+  createdAt  DateTime                    @default(now())
 
   source KnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
 
@@ -320,11 +333,12 @@ model Customer {
   createdAt     DateTime    @default(now())
   lastContactAt DateTime    @default(now())
 
-  company       Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   conversations Conversation[]
   leads         Lead[]
   notes         Note[]
   tags          CustomerTag[]
+  appointments  Appointment[]
 
   @@unique([companyId, channelType, channelUserId])
 }
@@ -355,6 +369,7 @@ model Conversation {
   notes        Note[]
   tags         ConversationTag[]
   handoffs     HumanHandoff[]
+  appointments Appointment[]
 
   @@index([companyId, status])
 }
@@ -492,16 +507,60 @@ model Note {
   author       User          @relation(fields: [authorUserId], references: [id])
 }
 
-// ---------- Integraciones / auditoría (scaffold) ----------
+// ---------- Integraciones / auditoría ----------
 
+/// `provider` es un identificador libre (ej. "GOOGLE_CALENDAR") en vez de un enum, para no
+/// requerir una migración cada vez que se suma un proveedor nuevo; se valida con un union
+/// type de TypeScript en el código (ver src/lib/actions/integrations.ts).
 model Integration {
-  id        String   @id @default(cuid())
-  companyId String
-  provider  String
-  config    Json?
-  createdAt DateTime @default(now())
+  id             String            @id @default(cuid())
+  companyId      String
+  provider       String
+  status         IntegrationStatus @default(DISCONNECTED)
+  accountEmail   String?
+  calendarId     String            @default("primary")
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  scope          String?
+  lastSyncAt     DateTime?
+  lastError      String?
+  config         Json?
+  createdAt      DateTime          @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, provider])
+}
+
+/// Reservas de turnos. Se guarda una copia local (en vez de consultar Google Calendar en
+/// cada búsqueda) porque la API de Calendar no permite encontrar eventos por teléfono del
+/// cliente sin un email de invitado. Reprogramar actualiza la misma fila (sigue CONFIRMED)
+/// en vez de crear una fila nueva, para no tener ambigüedad al buscar el turno vigente.
+model Appointment {
+  id             String            @id @default(cuid())
+  companyId      String
+  customerId     String
+  conversationId String?
+  googleEventId  String
+  startsAt       DateTime
+  endsAt         DateTime
+  status         AppointmentStatus @default(CONFIRMED)
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+
+  // No hay @@unique([companyId, startsAt]) acá a propósito: un unique constraint incondicional
+  // bloquearía para siempre un horario cancelado (la fila CANCELLED seguiría "ocupando" ese
+  // startsAt). En su lugar hay un índice único PARCIAL (solo sobre status = 'CONFIRMED') creado
+  // a mano en la migración SQL — Prisma no puede expresar índices parciales en el schema, pero
+  // sigue disparando P2002 igual porque lee el código de error de Postgres, no el schema.
+  @@index([companyId, startsAt])
+  @@index([companyId, customerId, status])
 }
 
 model WebhookEvent {

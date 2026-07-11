@@ -16,6 +16,7 @@ function readAgentForm(formData: FormData) {
     language: String(formData.get("language") ?? "es").trim() || "es",
     handoffRules: String(formData.get("handoffRules") ?? "").trim() || null,
     isActive: formData.get("isActive") === "on",
+    actionsEnabled: formData.get("actionsEnabled") === "on",
     channelIds: formData.getAll("channelIds").map(String),
     knowledgeSourceIds: formData.getAll("knowledgeSourceIds").map(String),
   };
@@ -37,6 +38,7 @@ export async function createAgent(formData: FormData) {
       language: data.language,
       handoffRules: data.handoffRules,
       isActive: data.isActive,
+      actionsEnabled: data.actionsEnabled,
       channels: { create: data.channelIds.map((channelId) => ({ channelId })) },
       knowledgeSources: { create: data.knowledgeSourceIds.map((sourceId) => ({ sourceId })) },
     },
@@ -65,6 +67,7 @@ export async function updateAgent(agentId: string, formData: FormData) {
         language: data.language,
         handoffRules: data.handoffRules,
         isActive: data.isActive,
+        actionsEnabled: data.actionsEnabled,
       },
     }),
     prisma.agentChannel.deleteMany({ where: { agentId } }),

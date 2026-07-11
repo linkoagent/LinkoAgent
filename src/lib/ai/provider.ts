@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import { normalizeWords } from "@/lib/ai/embeddings";
+import { detectIntent } from "@/lib/ai/heuristics";
 import { RateLimitError } from "@/lib/ai/errors";
+import type { ToolDefinition } from "@/lib/ai/tools/types";
 
 export const AI_MOCK = !process.env.GROQ_API_KEY || process.env.AI_MOCK_MODE === "true";
 const MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
@@ -13,13 +15,21 @@ function getClient() {
   return client;
 }
 
-export interface ChatMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
+export interface ChatToolCall {
+  id: string;
+  name: string;
+  /** JSON string sin parsear — cada tool valida/parsea sus propios argumentos. */
+  arguments: string;
 }
+
+export type ChatMessage =
+  | { role: "system" | "user"; content: string }
+  | { role: "assistant"; content: string | null; toolCalls?: ChatToolCall[] }
+  | { role: "tool"; content: string; toolCallId: string };
 
 export interface ChatResult {
   content: string;
+  toolCalls?: ChatToolCall[];
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
@@ -36,6 +46,31 @@ const PRICING: Record<string, { input: number; output: number }> = {
 function estimateCost(model: string, promptTokens: number, completionTokens: number) {
   const p = PRICING[model] ?? PRICING.default;
   return (promptTokens / 1_000_000) * p.input + (completionTokens / 1_000_000) * p.output;
+}
+
+function toOpenAITools(tools: ToolDefinition[]): OpenAI.Chat.Completions.ChatCompletionTool[] {
+  return tools.map((t) => ({
+    type: "function",
+    function: { name: t.name, description: t.description, parameters: t.parameters as unknown as Record<string, unknown> },
+  }));
+}
+
+function toOpenAIMessages(messages: ChatMessage[]): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
+  return messages.map((m): OpenAI.Chat.Completions.ChatCompletionMessageParam => {
+    if (m.role === "tool") {
+      return { role: "tool", content: m.content, tool_call_id: m.toolCallId };
+    }
+    if (m.role === "assistant") {
+      return {
+        role: "assistant",
+        content: m.content,
+        ...(m.toolCalls?.length
+          ? { tool_calls: m.toolCalls.map((tc) => ({ id: tc.id, type: "function" as const, function: { name: tc.name, arguments: tc.arguments } })) }
+          : {}),
+      };
+    }
+    return { role: m.role, content: m.content };
+  });
 }
 
 /**
@@ -66,43 +101,104 @@ function bestKnowledgeEntry(knowledgeBlock: string, query: string): string | nul
   return best;
 }
 
-function mockReply(messages: ChatMessage[]): string {
-  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+/** Fecha/hora de mañana a una hora fija, en formato naive local — solo para ejercitar el loop
+ * de tool-calling en modo simulado, no necesita ser precisa de verdad. */
+function mockGuessTomorrowAt(hour: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}T${String(hour).padStart(2, "0")}:00:00`;
+}
+
+/** Sintetiza un tool_call determinístico en base a la intención detectada por heurística, para
+ * poder probar el loop completo (ejecución de tools reales) sin GROQ_API_KEY. */
+function mockToolCall(lastUserText: string, tools: ToolDefinition[]): ChatToolCall[] | null {
+  const intent = detectIntent(lastUserText);
+  const hasTool = (name: string) => tools.some((t) => t.name === name);
+
+  if (intent === "reserva" && hasTool("check_availability")) {
+    return [{ id: "mock-tool-1", name: "check_availability", arguments: JSON.stringify({ startsAt: mockGuessTomorrowAt(10) }) }];
+  }
+  if (intent === "cancelacion" && hasTool("cancel_appointment")) {
+    return [{ id: "mock-tool-1", name: "cancel_appointment", arguments: JSON.stringify({}) }];
+  }
+  return null;
+}
+
+function summarizeToolResultMock(toolContent: string): string {
+  try {
+    const data = JSON.parse(toolContent);
+    if (data.booked) return `Listo, quedó reservado para ${data.startsAt}.`;
+    if (data.available === true) return `Ese horario está libre (${data.startsAt}).`;
+    if (data.available === false) return `Ese horario no está disponible (${data.reason ?? ""}).`;
+    if (data.cancelled) return `Cancelé el turno del ${data.startsAt}.`;
+    if (data.rescheduled) return `Reprogramé el turno para ${data.startsAt}.`;
+    if (data.found === 0) return "No encontré ningún turno activo para cancelar/reprogramar.";
+    if (typeof data.found === "number" && data.found > 1) return "Tenés más de un turno activo, decime cuál.";
+    if (data.error) return `No pude completar la acción: ${data.error}`;
+  } catch {
+    // sigue al mensaje genérico
+  }
+  return "Ya procesé tu pedido.";
+}
+
+function isUserMessage(m: ChatMessage): m is ChatMessage & { role: "user" } {
+  return m.role === "user";
+}
+
+function mockReply(messages: ChatMessage[], tools?: ToolDefinition[]): ChatResult {
+  const promptTokens = Math.round(messages.reduce((s, m) => s + (m.content?.length ?? 0), 0) / 4);
+
+  const hasToolResult = messages.some((m) => m.role === "tool");
+  if (tools?.length && !hasToolResult) {
+    const lastUser = [...messages].reverse().find(isUserMessage);
+    const toolCalls = lastUser ? mockToolCall(lastUser.content, tools) : null;
+    if (toolCalls) {
+      return { content: "", toolCalls, promptTokens, completionTokens: 0, totalTokens: promptTokens, costUsd: 0, model: "mock" };
+    }
+  }
+
+  if (hasToolResult) {
+    const toolMsg = [...messages].reverse().find((m) => m.role === "tool")!;
+    const content = `(modo simulado) ${summarizeToolResultMock(toolMsg.content)}`;
+    const completionTokens = Math.round(content.length / 4);
+    return { content, promptTokens, completionTokens, totalTokens: promptTokens + completionTokens, costUsd: 0, model: "mock" };
+  }
+
+  const lastUser = [...messages].reverse().find(isUserMessage);
   const system = messages.find((m) => m.role === "system")?.content ?? "";
   const knowledgeMatch = system.match(/CONOCIMIENTO:\n([\s\S]*?)(\n\n[A-ZÁÉÍÓÚ ]+:|$)/);
   const knowledgeBlock = knowledgeMatch?.[1];
 
+  let content: string;
   if (knowledgeBlock && lastUser) {
     const entry = bestKnowledgeEntry(knowledgeBlock, lastUser.content);
     if (entry) {
       const answer = entry.match(/Respuesta:\s*([\s\S]+)/i)?.[1]?.trim() ?? entry;
-      return `(modo simulado) ${answer} ¿Te sirve o preferís que te derive con una persona del equipo?`;
+      content = `(modo simulado) ${answer} ¿Te sirve o preferís que te derive con una persona del equipo?`;
+    } else {
+      content = `(modo simulado) Recibí tu mensaje: "${lastUser?.content ?? ""}". Todavía no tengo suficiente información cargada — probá sumar contenido en la Base de Conocimiento para que pueda responder mejor.`;
     }
+  } else {
+    content = `(modo simulado) Recibí tu mensaje: "${lastUser?.content ?? ""}". Todavía no tengo suficiente información cargada — probá sumar contenido en la Base de Conocimiento para que pueda responder mejor.`;
   }
-  return `(modo simulado) Recibí tu mensaje: "${lastUser?.content ?? ""}". Todavía no tengo suficiente información cargada — probá sumar contenido en la Base de Conocimiento para que pueda responder mejor.`;
+
+  const completionTokens = Math.round(content.length / 4);
+  return { content, promptTokens, completionTokens, totalTokens: promptTokens + completionTokens, costUsd: 0, model: "mock" };
 }
 
-export async function chatComplete(messages: ChatMessage[]): Promise<ChatResult> {
-  if (AI_MOCK) {
-    const content = mockReply(messages);
-    const promptTokens = Math.round(messages.reduce((s, m) => s + m.content.length, 0) / 4);
-    const completionTokens = Math.round(content.length / 4);
-    return {
-      content,
-      promptTokens,
-      completionTokens,
-      totalTokens: promptTokens + completionTokens,
-      costUsd: 0,
-      model: "mock",
-    };
-  }
+export async function chatComplete(messages: ChatMessage[], tools?: ToolDefinition[]): Promise<ChatResult> {
+  if (AI_MOCK) return mockReply(messages, tools);
 
   let res;
   try {
     res = await getClient().chat.completions.create({
       model: MODEL,
-      messages,
+      messages: toOpenAIMessages(messages),
       temperature: 0.4,
+      ...(tools?.length ? { tools: toOpenAITools(tools), tool_choice: "auto" } : {}),
     });
   } catch (err) {
     if (err instanceof OpenAI.APIError && err.status === 429) {
@@ -113,9 +209,14 @@ export async function chatComplete(messages: ChatMessage[]): Promise<ChatResult>
 
   const promptTokens = res.usage?.prompt_tokens ?? 0;
   const completionTokens = res.usage?.completion_tokens ?? 0;
+  const choice = res.choices[0];
+  const toolCalls = choice?.message?.tool_calls
+    ?.filter((tc) => tc.type === "function")
+    .map((tc) => ({ id: tc.id, name: tc.function.name, arguments: tc.function.arguments }));
 
   return {
-    content: res.choices[0]?.message?.content ?? "",
+    content: choice?.message?.content ?? "",
+    toolCalls: toolCalls?.length ? toolCalls : undefined,
     promptTokens,
     completionTokens,
     totalTokens: promptTokens + completionTokens,

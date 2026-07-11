@@ -6,17 +6,21 @@ import { prisma } from "@/lib/prisma";
 import { AgentForm } from "@/components/agents/agent-form";
 import { updateAgent, deleteAgent } from "@/lib/actions/agents";
 import { Button } from "@/components/ui/button";
+import { GOOGLE_CALENDAR_PROVIDER } from "@/lib/googleCalendar/client";
 
 export default async function EditAgentPage({ params }: { params: { agentId: string } }) {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
 
-  const [agent, channels, knowledgeSources] = await Promise.all([
+  const [agent, channels, knowledgeSources, calendarIntegration] = await Promise.all([
     prisma.agent.findFirst({
       where: { id: params.agentId, companyId: ctx.companyId },
       include: { channels: true, knowledgeSources: true },
     }),
     prisma.channel.findMany({ where: { companyId: ctx.companyId } }),
     prisma.knowledgeSource.findMany({ where: { companyId: ctx.companyId } }),
+    prisma.integration.findUnique({
+      where: { companyId_provider: { companyId: ctx.companyId, provider: GOOGLE_CALENDAR_PROVIDER } },
+    }),
   ]);
 
   if (!agent) notFound();
@@ -57,6 +61,7 @@ export default async function EditAgentPage({ params }: { params: { agentId: str
         knowledgeSources={knowledgeSources}
         selectedChannelIds={agent.channels.map((c) => c.channelId)}
         selectedSourceIds={agent.knowledgeSources.map((s) => s.sourceId)}
+        calendarConnected={calendarIntegration?.status === "CONNECTED"}
         action={updateWithId}
       />
     </div>

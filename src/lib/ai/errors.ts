@@ -9,3 +9,16 @@ export class RateLimitError extends Error {
     this.name = "RateLimitError";
   }
 }
+
+/**
+ * Se tira cuando falla el token de una integración externa (Google Calendar, etc.): revocado,
+ * expirado, o refresh_token inválido. Nunca debe propagarse sin capturar desde la ejecución de
+ * un tool — quien la atrapa marca la Integration como ERROR y devuelve un resultado de texto
+ * para que el modelo se lo explique al cliente o dispare handoff.
+ */
+export class IntegrationAuthError extends Error {
+  constructor(public provider: string, message: string) {
+    super(message);
+    this.name = "IntegrationAuthError";
+  }
+}
