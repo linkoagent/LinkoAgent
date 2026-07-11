@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Logomark, Wordmark } from "@/components/logomark";
 import { useLocale, useMarketingContent } from "./locale-provider";
+import { contactIconFor } from "./contact-icons";
 
 export function MarketingFooter() {
   const { locale } = useLocale();
@@ -40,13 +41,20 @@ export function MarketingFooter() {
               {locale === "es" ? "Contacto" : "Contact"}
             </div>
             <ul className="mt-3 flex flex-col gap-2">
-              {contactChannels.map((c) => (
-                <li key={c.label}>
-                  <a href={c.href} className="text-[13px] text-muted-foreground hover:text-foreground">
-                    {c.value}
-                  </a>
-                </li>
-              ))}
+              {contactChannels.map((c) => {
+                const Icon = contactIconFor(c.label);
+                return (
+                  <li key={c.label}>
+                    <a
+                      href={c.href}
+                      className="flex items-center gap-2 text-[13px] text-muted-foreground hover:text-foreground"
+                    >
+                      {Icon && <Icon className="h-4 w-4 shrink-0" />}
+                      {c.value}
+                    </a>
+                  </li>
+                );
+              })}
             </ul>
             <div className="mt-5 font-display text-[11px] uppercase tracking-wide text-faint">Legal</div>
             <ul className="mt-3 flex flex-col gap-2">

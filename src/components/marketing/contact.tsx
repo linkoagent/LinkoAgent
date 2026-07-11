@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useLocale, useMarketingContent } from "./locale-provider";
 import { Reveal } from "./reveal";
+import { contactIconFor } from "./contact-icons";
 
 const initialForm = {
   nombre: "",
@@ -76,16 +77,22 @@ export function MarketingContact() {
           </p>
 
           <div className="mt-8 flex flex-col gap-3">
-            {contactChannels.map((c) => (
-              <a
-                key={c.label}
-                href={c.href}
-                className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-3.5 transition hover:border-faint"
-              >
-                <span className="font-display text-[12px] uppercase tracking-wide text-faint">{c.label}</span>
-                <span className="text-[13.5px] text-foreground">{c.value}</span>
-              </a>
-            ))}
+            {contactChannels.map((c) => {
+              const Icon = contactIconFor(c.label);
+              return (
+                <a
+                  key={c.label}
+                  href={c.href}
+                  className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-3.5 transition hover:border-faint"
+                >
+                  <span className="flex items-center gap-2.5">
+                    {Icon && <Icon className="h-6 w-6 shrink-0" />}
+                    <span className="font-display text-[12px] uppercase tracking-wide text-faint">{c.label}</span>
+                  </span>
+                  <span className="text-[13.5px] text-foreground">{c.value}</span>
+                </a>
+              );
+            })}
             <p className="font-display text-[11px] text-faint">
               {locale === "es" ? "Respuesta en menos de 24hs." : "Response within 24 hours."}
             </p>
