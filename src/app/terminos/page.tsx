@@ -4,6 +4,7 @@ import { MarketingFooter } from "@/components/marketing/footer";
 
 export const metadata: Metadata = {
   title: "Términos y condiciones — Linko Agent",
+  alternates: { canonical: "/terminos" },
 };
 
 export default function TerminosPage() {

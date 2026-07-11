@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { consumePasswordToken } from "@/lib/email/tokens";
 import { Logomark, Wordmark } from "@/components/logomark";
+
+export const metadata: Metadata = {
+  title: "Confirmar email — Linko Agent",
+  robots: { index: false, follow: true },
+};
 
 export default async function VerifyEmailPage({ searchParams }: { searchParams: { token?: string } }) {
   const token = searchParams.token ?? "";

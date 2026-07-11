@@ -4,6 +4,7 @@ import { MarketingFooter } from "@/components/marketing/footer";
 
 export const metadata: Metadata = {
   title: "Política de privacidad — Linko Agent",
+  alternates: { canonical: "/privacidad" },
 };
 
 export default function PrivacidadPage() {
