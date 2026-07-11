@@ -189,6 +189,25 @@ function mockReply(messages: ChatMessage[], tools?: ToolDefinition[]): ChatResul
   return { content, promptTokens, completionTokens, totalTokens: promptTokens + completionTokens, costUsd: 0, model: "mock" };
 }
 
+/**
+ * Groq/Llama a veces "alucina" el formato de la llamada a función como texto plano
+ * (`<function=nombre{"arg":"valor"}</function>`) en vez de emitirla en el campo estructurado
+ * `tool_calls` — cuando pasa esto, Groq no nos da la respuesta normal, tira un 400 con
+ * `code: "tool_use_failed"`, pero incluye igual el texto que el modelo intentó generar
+ * (`error.failed_generation`). En vez de perder la respuesta, lo parseamos nosotros: el modelo
+ * sí eligió bien la función y los argumentos, Groq solo no pudo formatearla de vuelta.
+ */
+function parseFailedGeneration(text: string): ChatToolCall[] {
+  const regex = /<function=([a-zA-Z_][a-zA-Z0-9_]*)(\{[\s\S]*?\})<\/function>/g;
+  const calls: ChatToolCall[] = [];
+  let match: RegExpExecArray | null;
+  let i = 0;
+  while ((match = regex.exec(text)) !== null) {
+    calls.push({ id: `recovered-${Date.now()}-${i++}`, name: match[1], arguments: match[2] });
+  }
+  return calls;
+}
+
 export async function chatComplete(messages: ChatMessage[], tools?: ToolDefinition[]): Promise<ChatResult> {
   if (AI_MOCK) return mockReply(messages, tools);
 
@@ -203,6 +222,21 @@ export async function chatComplete(messages: ChatMessage[], tools?: ToolDefiniti
   } catch (err) {
     if (err instanceof OpenAI.APIError && err.status === 429) {
       throw new RateLimitError("groq", "Se alcanzó el límite de uso gratuito de Groq (rate limit), no el límite de conversaciones del plan.");
+    }
+    if (err instanceof OpenAI.APIError && err.status === 400 && (err as { code?: string }).code === "tool_use_failed") {
+      const failedGeneration = (err as { error?: { failed_generation?: string } }).error?.failed_generation;
+      const recoveredCalls = typeof failedGeneration === "string" ? parseFailedGeneration(failedGeneration) : [];
+      if (recoveredCalls.length > 0) {
+        return {
+          content: "",
+          toolCalls: recoveredCalls,
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          costUsd: 0,
+          model: MODEL,
+        };
+      }
     }
     throw err;
   }
