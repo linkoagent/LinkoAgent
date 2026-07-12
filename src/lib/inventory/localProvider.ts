@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { parseCustomFields } from "./customFields";
 import type { InventoryItem, InventoryProvider, NewInventoryItem } from "./types";
 
-/** Proveedor por defecto: el mismo Product de Postgres que ya usa /products, sin ningún cambio
- * de comportamiento respecto de antes de esta refactorización. */
+/** Proveedor por defecto: el mismo Product de Postgres que ya usa /products. `name`/`stock` son
+ * columnas propias; todo lo demás (precio, SKU, color, talle, lo que sea) vive en customFields. */
 export class LocalInventoryProvider implements InventoryProvider {
   readonly provider = "LOCAL";
 
@@ -10,25 +11,24 @@ export class LocalInventoryProvider implements InventoryProvider {
 
   async list(): Promise<InventoryItem[]> {
     const products = await prisma.product.findMany({ where: { companyId: this.companyId } });
-    return products.map((p) => ({ id: p.id, name: p.name, sku: p.sku, stock: p.stock, price: p.price, unit: p.unit }));
+    return products.map((p) => ({ id: p.id, name: p.name, stock: p.stock, customFields: parseCustomFields(p.customFields) }));
   }
 
   async updateStock(id: string, newStock: number): Promise<InventoryItem> {
     const updated = await prisma.product.update({ where: { id }, data: { stock: Math.max(0, newStock) } });
-    return { id: updated.id, name: updated.name, sku: updated.sku, stock: updated.stock, price: updated.price, unit: updated.unit };
+    return { id: updated.id, name: updated.name, stock: updated.stock, customFields: parseCustomFields(updated.customFields) };
   }
 
   async create(item: NewInventoryItem): Promise<InventoryItem> {
+    const customFields = item.customFields ?? {};
     const created = await prisma.product.create({
       data: {
         companyId: this.companyId,
         name: item.name,
-        sku: item.sku ?? null,
         stock: Math.max(0, item.stock),
-        price: item.price ?? null,
-        unit: item.unit ?? null,
+        customFields,
       },
     });
-    return { id: created.id, name: created.name, sku: created.sku, stock: created.stock, price: created.price, unit: created.unit };
+    return { id: created.id, name: created.name, stock: created.stock, customFields: parseCustomFields(created.customFields) };
   }
 }

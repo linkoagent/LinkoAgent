@@ -28,7 +28,7 @@ export const checkStockTool: ToolDefinition = {
         return { found: matches.length, products: matches.map((i) => ({ name: i.name, stock: i.stock })) };
       }
       const [item] = matches;
-      return { found: 1, name: item.name, stock: item.stock, unit: item.unit };
+      return { found: 1, name: item.name, stock: item.stock, ...item.customFields };
     } catch (err) {
       return toolErrorResult("check_stock", err);
     }
@@ -121,11 +121,12 @@ export const addProductTool: ToolDefinition = {
         };
       }
 
-      const sku = args.sku ? String(args.sku).trim() : null;
-      const price = args.price !== undefined && args.price !== null && args.price !== "" ? Number(args.price) : null;
-      const unit = args.unit ? String(args.unit).trim() : null;
+      const customFields: Record<string, string> = {};
+      if (args.sku) customFields.SKU = String(args.sku).trim();
+      if (args.price !== undefined && args.price !== null && args.price !== "") customFields.Precio = String(Number(args.price));
+      if (args.unit) customFields.Unidad = String(args.unit).trim();
 
-      const created = await provider.create({ name, stock, sku, price, unit });
+      const created = await provider.create({ name, stock, customFields });
       return { added: true, name: created.name, stock: created.stock };
     } catch (err) {
       return toolErrorResult("add_product", err);

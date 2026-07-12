@@ -649,16 +649,17 @@ model CompanyHoliday {
 /// Inventario simple. Se carga a mano en /products por ahora (sincronización con Google
 /// Sheets/Excel queda para una etapa posterior) — es la fuente que consultan/modifican los
 /// tools de stock del agente (check_stock/update_stock).
+/// Inventario simple. Atributos más allá de nombre/stock (precio, SKU, color, talle, etc.) se
+/// guardan en customFields como pares label->valor libres, porque un negocio puede vender
+/// productos, servicios, o cualquier otra cosa con sus propios atributos.
 model Product {
-  id        String   @id @default(cuid())
-  companyId String
-  name      String
-  sku       String?
-  stock     Int      @default(0)
-  price     Float?
-  unit      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  companyId    String
+  name         String
+  stock        Int      @default(0)
+  customFields Json     @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 

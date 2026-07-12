@@ -5,20 +5,22 @@ import { NewProductForm } from "@/components/products/new-product-form";
 import { ProductRow } from "@/components/products/product-row";
 import { NlCommandBox } from "@/components/products/nl-command-box";
 import { SyncSheetButton } from "@/components/products/sync-sheet-button";
-import type { InventoryItem } from "@/lib/inventory/types";
 
 export default async function ProductsPage() {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
   const provider = await getInventoryProviderForCompany(ctx.companyId);
   const isSheets = provider.provider === "GOOGLE_SHEETS";
 
-  // provider.list() puede fallar (planilla borrada, permisos revocados, hoja renombrada) — nunca
-  // debe tirar abajo toda la página, así que se atrapa acá y se muestra un aviso en vez de romper.
-  let sheetItems: InventoryItem[] = [];
+  // provider.listRaw() puede fallar (planilla borrada, permisos revocados, hoja renombrada) —
+  // nunca debe tirar abajo toda la página, así que se atrapa acá y se muestra un aviso en vez de romper.
+  let sheetHeaders: string[] = [];
+  let sheetRows: { id: string; values: string[] }[] = [];
   let sheetsError: string | null = null;
   if (isSheets) {
     try {
-      sheetItems = await provider.list();
+      const raw = await provider.listRaw?.();
+      sheetHeaders = raw?.headers ?? [];
+      sheetRows = raw?.rows ?? [];
     } catch (err) {
       sheetsError = err instanceof Error ? err.message : "No se pudo leer la planilla conectada.";
     }
@@ -27,7 +29,6 @@ export default async function ProductsPage() {
   const products = isSheets
     ? []
     : await prisma.product.findMany({ where: { companyId: ctx.companyId }, orderBy: { name: "asc" } });
-  const rowCount = isSheets ? sheetItems.length : products.length;
 
   const spreadsheetId = isSheets
     ? (await prisma.integration.findUnique({ where: { companyId_provider: { companyId: ctx.companyId, provider: "GOOGLE_SHEETS" } } }))
@@ -77,34 +78,44 @@ export default async function ProductsPage() {
         <NewProductForm />
       )}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-2 border-b border-border px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          <span>Nombre</span>
-          <span>SKU</span>
-          <span>Stock</span>
-          <span>Precio</span>
-          <span>Unidad</span>
-          <span />
+      {isSheets ? (
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-border text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {sheetHeaders.map((header, i) => (
+                  <th key={i} className="px-4 py-2.5 font-medium">
+                    {header || `Columna ${i + 1}`}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sheetRows.map((row) => (
+                <tr key={row.id} className="border-b border-border last:border-0">
+                  {row.values.map((value, i) => (
+                    <td key={i} className="px-4 py-2.5 text-foreground">
+                      {value || "—"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {sheetRows.length === 0 && !sheetsError && (
+            <p className="p-10 text-center text-sm text-muted-foreground">Todavía no cargaste ningún producto.</p>
+          )}
         </div>
-        {isSheets
-          ? sheetItems.map((item) => (
-              <div
-                key={item.id}
-                className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] items-center gap-2 border-b border-border px-4 py-2.5 text-sm last:border-0"
-              >
-                <span className="text-foreground">{item.name}</span>
-                <span className="text-muted-foreground">{item.sku ?? "—"}</span>
-                <span className="text-foreground">{item.stock}</span>
-                <span className="text-muted-foreground">{item.price ?? "—"}</span>
-                <span className="text-muted-foreground">{item.unit ?? "—"}</span>
-                <span />
-              </div>
-            ))
-          : products.map((p) => <ProductRow key={p.id} product={p} />)}
-        {rowCount === 0 && (
-          <p className="p-10 text-center text-sm text-muted-foreground">Todavía no cargaste ningún producto.</p>
-        )}
-      </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          {products.map((p) => (
+            <ProductRow key={p.id} product={p} />
+          ))}
+          {products.length === 0 && (
+            <p className="p-10 text-center text-sm text-muted-foreground">Todavía no cargaste ningún producto.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

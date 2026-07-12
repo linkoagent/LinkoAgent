@@ -15,19 +15,14 @@ const MOCK_TEMPLATE: string[][] = [
 // exacto de antemano.
 const SHEET_RANGE = "A:Z";
 
-type ColumnKey = "name" | "sku" | "stock" | "price" | "unit";
+type ColumnKey = "name" | "stock";
 
-/** No hay forma de asumir que el cliente va a nombrar sus columnas "Nombre/SKU/Stock/Precio/
- * Unidad" en ese orden exacto — puede ser un producto, un servicio, cualquier cosa, con su propia
- * planilla ya armada. Se detectan por sinónimo de encabezado, sin importar en qué columna estén. */
+/** Solo `name` y `stock` son "estructurales" (los necesita check_stock/update_stock) — el resto de
+ * las columnas de la planilla (Precio, SKU, Unidad, o cualquier otra que el cliente ya tenga, como
+ * "Cant. Ventas") se exponen tal cual, con su encabezado real como label, en customFields. */
 const HEADER_SYNONYMS: Record<ColumnKey, string[]> = {
   name: ["nombre", "producto", "servicio", "item", "articulo", "descripcion", "detalle", "concepto", "name", "product", "service", "title"],
-  // Sin "id" ni sinónimos igual de cortos/genéricos: como el matching usa .includes(), un
-  // sinónimo de 2 letras da falsos positivos (ej. "cantidad" y "unidad" contienen "id").
-  sku: ["sku", "codigo", "cod", "code"],
   stock: ["stock", "cantidad", "existencia", "existencias", "disponible", "disponibilidad", "cupo", "cupos", "qty", "quantity"],
-  price: ["precio", "costo", "valor", "price", "cost"],
-  unit: ["unidad", "medida", "unit", "uom"],
 };
 
 export function normalizeHeader(value: string): string {
@@ -89,15 +84,17 @@ export class GoogleSheetsInventoryProvider implements InventoryProvider {
     return getValuesRange(this.spreadsheetId, `${this.sheetName}!${SHEET_RANGE}`, accessToken);
   }
 
-  private parseRows(rows: string[][]): { items: InventoryItem[]; columns: Partial<Record<ColumnKey, number>> } {
-    if (rows.length === 0) return { items: [], columns: {} };
+  private parseRows(rows: string[][]): { items: InventoryItem[]; columns: Partial<Record<ColumnKey, number>>; headerRow: string[] } {
+    if (rows.length === 0) return { items: [], columns: {}, headerRow: [] };
 
-    const columns = buildColumnMap(rows[0] ?? []);
+    const headerRow = rows[0] ?? [];
+    const columns = buildColumnMap(headerRow);
     if (columns.name === undefined) {
       throw new Error(
         'No encontré una columna de nombre en la fila 1. Poné un encabezado como "Nombre", "Producto" o "Servicio" en alguna columna.'
       );
     }
+    const knownIdx = new Set(Object.values(columns).filter((v): v is number => v !== undefined));
 
     const items: InventoryItem[] = [];
     for (let i = 1; i < rows.length; i++) {
@@ -105,21 +102,41 @@ export class GoogleSheetsInventoryProvider implements InventoryProvider {
       const name = row?.[columns.name];
       if (!row || !name) continue;
       const sheetRowNumber = i + 1; // fila real en la Sheet (1-based; la fila 1 es el encabezado)
+
+      const customFields: Record<string, string> = {};
+      headerRow.forEach((label, idx) => {
+        if (knownIdx.has(idx)) return;
+        const header = (label ?? "").trim();
+        if (header && row[idx]) customFields[header] = row[idx];
+      });
+
       items.push({
         id: String(sheetRowNumber),
         name,
-        sku: columns.sku !== undefined ? row[columns.sku] || null : null,
         stock: columns.stock !== undefined ? Number(row[columns.stock] ?? "0") || 0 : 0,
-        price: columns.price !== undefined && row[columns.price] ? Number(row[columns.price]) : null,
-        unit: columns.unit !== undefined ? row[columns.unit] || null : null,
+        customFields,
       });
     }
-    return { items, columns };
+    return { items, columns, headerRow };
   }
 
   async list(): Promise<InventoryItem[]> {
     const rows = await this.getRawRows();
     return this.parseRows(rows).items;
+  }
+
+  /** Devuelve el header row y los valores tal cual están en la planilla, sin pasar por detección
+   * de sinónimos — /products lo usa para mostrar la tabla 1:1 con el Excel real del cliente. */
+  async listRaw(): Promise<{ headers: string[]; rows: { id: string; values: string[] }[] }> {
+    const rows = await this.getRawRows();
+    const headers = (rows[0] ?? []).map((h) => h ?? "");
+    const dataRows: { id: string; values: string[] }[] = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || !row.some(Boolean)) continue;
+      dataRows.push({ id: String(i + 1), values: headers.map((_, idx) => row[idx] ?? "") });
+    }
+    return { headers, rows: dataRows };
   }
 
   async updateStock(id: string, newStock: number): Promise<InventoryItem> {
@@ -128,7 +145,7 @@ export class GoogleSheetsInventoryProvider implements InventoryProvider {
     const item = items.find((i) => i.id === id);
     if (!item) throw new Error("No se encontró ese producto en la planilla.");
     if (columns.stock === undefined) {
-      throw new Error('Esa planilla no tiene una columna de stock/cantidad detectada, así que no se puede actualizar desde acá.');
+      throw new Error("Esa planilla no tiene una columna de stock/cantidad detectada, así que no se puede actualizar desde acá.");
     }
 
     if (GOOGLE_SHEETS_MOCK) {
@@ -145,22 +162,24 @@ export class GoogleSheetsInventoryProvider implements InventoryProvider {
 
   async create(item: NewInventoryItem): Promise<InventoryItem> {
     const rows = await this.getRawRows();
-    const { columns } = this.parseRows(rows);
+    const { columns, headerRow } = this.parseRows(rows);
     if (columns.name === undefined) {
       throw new Error(
         'No encontré una columna de nombre en la fila 1. Poné un encabezado como "Nombre", "Producto" o "Servicio" en alguna columna.'
       );
     }
 
-    // El ancho de la fila a escribir cubre hasta la columna detectada más a la derecha, para no
-    // pisar ninguna otra columna que el cliente ya tenga (ej. una de notas, sin sinónimo reconocido).
-    const width = Math.max(...Object.values(columns).filter((v): v is number => v !== undefined)) + 1;
-    const rowValues: string[] = new Array(width).fill("");
+    const rowValues: string[] = new Array(headerRow.length).fill("");
     rowValues[columns.name] = item.name;
-    if (columns.sku !== undefined && item.sku) rowValues[columns.sku] = item.sku;
     if (columns.stock !== undefined) rowValues[columns.stock] = String(item.stock);
-    if (columns.price !== undefined && item.price != null) rowValues[columns.price] = String(item.price);
-    if (columns.unit !== undefined && item.unit) rowValues[columns.unit] = item.unit;
+
+    // Cualquier otro campo (precio, sku, etc.) se ubica por igualdad exacta de encabezado real
+    // (sin acentos/mayúsculas); si esa columna no existe en la planilla, se descarta — no se
+    // pueden crear columnas nuevas automáticamente.
+    for (const [key, value] of Object.entries(item.customFields ?? {})) {
+      const idx = headerRow.findIndex((h, i) => i !== columns.name && i !== columns.stock && normalizeHeader(h ?? "") === normalizeHeader(key));
+      if (idx !== -1) rowValues[idx] = value;
+    }
 
     let sheetRowNumber: number;
     if (GOOGLE_SHEETS_MOCK) {
@@ -177,10 +196,8 @@ export class GoogleSheetsInventoryProvider implements InventoryProvider {
     return {
       id: String(sheetRowNumber),
       name: item.name,
-      sku: item.sku ?? null,
       stock: columns.stock !== undefined ? item.stock : 0,
-      price: item.price ?? null,
-      unit: item.unit ?? null,
+      customFields: item.customFields ?? {},
     };
   }
 }
