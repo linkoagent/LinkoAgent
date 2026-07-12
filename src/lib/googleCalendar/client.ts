@@ -13,7 +13,9 @@ const CLIENT_SECRET = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
 // Google: la disponibilidad se resuelve solo contra los Appointment locales.
 export const GOOGLE_CALENDAR_MOCK = !CLIENT_ID || process.env.GOOGLE_CALENDAR_MOCK_MODE === "true";
 
-const SCOPES = ["https://www.googleapis.com/auth/calendar.events", "openid", "email"];
+// calendar.events (solo eventos) no alcanza para freeBusy.query, que usa check_availability —
+// es un recurso distinto de la API. calendar (acceso completo) cubre eventos + freebusy.
+const SCOPES = ["https://www.googleapis.com/auth/calendar", "openid", "email"];
 
 function redirectUri() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
