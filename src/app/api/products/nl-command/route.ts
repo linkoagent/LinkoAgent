@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
-import { transcribeAudio } from "@/lib/ai/transcription";
 import { runWithTools } from "@/lib/ai/toolRuntime";
 import { INVENTORY_TOOLS } from "@/lib/ai/tools/inventory";
 import type { ChatMessage } from "@/lib/ai/provider";
@@ -16,24 +15,20 @@ const SYSTEM_PROMPT =
  * COMPANY_ADMIN/SUPER_ADMIN autenticada) — por eso arma el contexto con isAdminSession: true en
  * vez de depender de un customerPhone que matchee staffPhoneNumbers. Solo se le ofrece
  * INVENTORY_TOOLS al modelo, nunca la lista completa de tools del agente.
+ *
+ * Solo recibe texto: el audio se transcribe antes, en /api/products/transcribe, para que el
+ * dueño pueda revisar/editar la transcripción en el cuadro antes de mandarla.
  */
 export async function POST(req: NextRequest) {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
 
   const formData = await req.formData();
-  const audio = formData.get("audio");
   const text = formData.get("text");
 
-  let userMessage: string;
-  if (audio instanceof Blob) {
-    const buffer = Buffer.from(await audio.arrayBuffer());
-    const transcription = await transcribeAudio(buffer, audio.type || "audio/webm");
-    userMessage = transcription.text;
-  } else if (typeof text === "string" && text.trim()) {
-    userMessage = text.trim();
-  } else {
-    return NextResponse.json({ error: "Escribí o grabá un mensaje." }, { status: 400 });
+  if (typeof text !== "string" || !text.trim()) {
+    return NextResponse.json({ error: "Escribí un mensaje." }, { status: 400 });
   }
+  const userMessage = text.trim();
 
   const company = await prisma.company.findUniqueOrThrow({
     where: { id: ctx.companyId },
@@ -61,5 +56,5 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ transcript: audio instanceof Blob ? userMessage : null, reply: result.content });
+  return NextResponse.json({ reply: result.content });
 }

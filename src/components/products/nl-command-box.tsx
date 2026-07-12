@@ -13,6 +13,7 @@ export function NlCommandBox() {
   const [reply, setReply] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -57,9 +58,25 @@ export function NlCommandBox() {
       recorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const formData = new FormData();
-        formData.set("audio", blob, "command.webm");
-        await send(formData);
+        setTranscribing(true);
+        setError(null);
+        try {
+          const formData = new FormData();
+          formData.set("audio", blob, "command.webm");
+          const res = await fetch("/api/products/transcribe", { method: "POST", body: formData });
+          const data = await res.json();
+          if (!res.ok) {
+            setError(data.error ?? "No se pudo transcribir el audio.");
+            return;
+          }
+          // Se pone en el cuadro para que el dueño la revise/edite antes de mandarla, no se
+          // envía sola: es la queja explícita que motivó este cambio (antes se enviaba directo).
+          setText((prev) => (prev ? `${prev} ${data.text}` : data.text));
+        } catch {
+          setError("No se pudo conectar con el servidor.");
+        } finally {
+          setTranscribing(false);
+        }
       };
       mediaRecorderRef.current = recorder;
       recorder.start();
@@ -82,27 +99,38 @@ export function NlCommandBox() {
       </p>
       <div className="flex gap-2">
         <Input
-          value={text}
+          value={transcribing ? "Transcribiendo..." : text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") handleTextSubmit();
           }}
           placeholder="Escribí tu consulta o comando..."
-          disabled={loading || recording}
+          disabled={loading || recording || transcribing}
           className="text-sm"
         />
-        <Button type="button" size="sm" disabled={loading || recording || !text.trim()} onClick={handleTextSubmit}>
+        <Button
+          type="button"
+          size="sm"
+          disabled={loading || recording || transcribing || !text.trim()}
+          onClick={handleTextSubmit}
+        >
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Enviar"}
         </Button>
         <Button
           type="button"
           size="icon"
           variant={recording ? "destructive" : "outline"}
-          disabled={loading}
+          disabled={loading || transcribing}
           aria-label={recording ? "Detener grabación" : "Grabar mensaje"}
           onClick={recording ? stopRecording : startRecording}
         >
-          {recording ? <Square className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+          {transcribing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : recording ? (
+            <Square className="h-3.5 w-3.5" />
+          ) : (
+            <Mic className="h-3.5 w-3.5" />
+          )}
         </Button>
       </div>
       {reply && <p className="rounded-lg bg-muted p-2.5 text-sm text-foreground">{reply}</p>}
