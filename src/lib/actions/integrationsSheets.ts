@@ -97,10 +97,13 @@ export async function setGoogleSheetsSpreadsheet(formData: FormData): Promise<{ 
     return { ok: false, error: `No pude abrir esa planilla: ${message}. Revisá que la URL/ID sea correcta y que la cuenta conectada tenga acceso.` };
   }
 
-  const updated = await prisma.integration.update({ where: { id: integration.id }, data: { spreadsheetId, sheetName } });
-
+  // Se valida ANTES de persistir, contra un candidato en memoria (sin tocar la DB todavía): si
+  // spreadsheetId/sheetName quedaran guardados con un list() que falla, la empresa queda
+  // "conectada" a una planilla rota — y /products, que asume que Sheets conectado = legible,
+  // se rompía por completo en vez de mostrar un error.
   try {
-    const provider = new GoogleSheetsInventoryProvider(updated);
+    const candidate = { ...integration, spreadsheetId, sheetName };
+    const provider = new GoogleSheetsInventoryProvider(candidate);
     await provider.list();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error desconocido";
@@ -109,6 +112,8 @@ export async function setGoogleSheetsSpreadsheet(formData: FormData): Promise<{ 
       error: `No pude leer los productos de "${sheetName}": ${message}. Revisá que la primera fila tenga encabezados (nombre, stock, precio, etc.).`,
     };
   }
+
+  await prisma.integration.update({ where: { id: integration.id }, data: { spreadsheetId, sheetName } });
 
   revalidatePath("/integrations");
   revalidatePath("/products");

@@ -4,13 +4,25 @@ import { getInventoryProviderForCompany } from "@/lib/inventory/providerFactory"
 import { NewProductForm } from "@/components/products/new-product-form";
 import { ProductRow } from "@/components/products/product-row";
 import { NlCommandBox } from "@/components/products/nl-command-box";
+import type { InventoryItem } from "@/lib/inventory/types";
 
 export default async function ProductsPage() {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
   const provider = await getInventoryProviderForCompany(ctx.companyId);
   const isSheets = provider.provider === "GOOGLE_SHEETS";
 
-  const sheetItems = isSheets ? await provider.list() : [];
+  // provider.list() puede fallar (planilla borrada, permisos revocados, hoja renombrada) — nunca
+  // debe tirar abajo toda la página, así que se atrapa acá y se muestra un aviso en vez de romper.
+  let sheetItems: InventoryItem[] = [];
+  let sheetsError: string | null = null;
+  if (isSheets) {
+    try {
+      sheetItems = await provider.list();
+    } catch (err) {
+      sheetsError = err instanceof Error ? err.message : "No se pudo leer la planilla conectada.";
+    }
+  }
+
   const products = isSheets
     ? []
     : await prisma.product.findMany({ where: { companyId: ctx.companyId }, orderBy: { name: "asc" } });
@@ -32,7 +44,15 @@ export default async function ProductsPage() {
 
       <NlCommandBox />
 
-      {isSheets ? (
+      {isSheets && sheetsError ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          No se pudo leer la planilla conectada: {sheetsError} Revisá la conexión en{" "}
+          <a href="/integrations" className="underline">
+            Integraciones
+          </a>
+          .
+        </div>
+      ) : isSheets ? (
         <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
           Stock conectado a Google Sheets — editá los productos ahí o con el cuadro de arriba.{" "}
           {spreadsheetId && (
