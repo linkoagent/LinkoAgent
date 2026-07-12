@@ -169,24 +169,45 @@ export class GoogleSheetsInventoryProvider implements InventoryProvider {
       );
     }
 
-    const rowValues: string[] = new Array(headerRow.length).fill("");
+    // El header se puede ir ampliando en memoria a medida que aparecen campos sin columna
+    // existente — se agregan al final, nunca se pisa/reordena lo que ya había.
+    const workingHeader = [...headerRow];
+    const rowValues: string[] = new Array(workingHeader.length).fill("");
     rowValues[columns.name] = item.name;
     if (columns.stock !== undefined) rowValues[columns.stock] = String(item.stock);
 
-    // Cualquier otro campo (precio, sku, etc.) se ubica por igualdad exacta de encabezado real
-    // (sin acentos/mayúsculas); si esa columna no existe en la planilla, se descarta — no se
-    // pueden crear columnas nuevas automáticamente.
+    const newColumns: { label: string; index: number }[] = [];
     for (const [key, value] of Object.entries(item.customFields ?? {})) {
-      const idx = headerRow.findIndex((h, i) => i !== columns.name && i !== columns.stock && normalizeHeader(h ?? "") === normalizeHeader(key));
-      if (idx !== -1) rowValues[idx] = value;
+      const idx = workingHeader.findIndex(
+        (h, i) => i !== columns.name && i !== columns.stock && normalizeHeader(h ?? "") === normalizeHeader(key)
+      );
+      if (idx !== -1) {
+        rowValues[idx] = value;
+      } else {
+        const newIdx = workingHeader.length;
+        workingHeader.push(key);
+        rowValues.push(value);
+        newColumns.push({ label: key, index: newIdx });
+      }
     }
 
     let sheetRowNumber: number;
     if (GOOGLE_SHEETS_MOCK) {
+      if (newColumns.length > 0) this.mockRows[0] = workingHeader;
       this.mockRows.push(rowValues);
       sheetRowNumber = this.mockRows.length;
     } else {
       const accessToken = await getValidAccessToken(this.integration);
+      if (newColumns.length > 0) {
+        const startLetter = columnIndexToLetter(newColumns[0].index);
+        const endLetter = columnIndexToLetter(newColumns[newColumns.length - 1].index);
+        await updateRange(
+          this.spreadsheetId,
+          `${this.sheetName}!${startLetter}1:${endLetter}1`,
+          [newColumns.map((c) => c.label)],
+          accessToken
+        );
+      }
       const { updatedRange } = await appendRow(this.spreadsheetId, this.sheetName, rowValues, accessToken);
       const rowMatch = updatedRange.match(/![A-Z]+(\d+)/);
       if (!rowMatch) throw new Error("Se agregó la fila pero no pude confirmar en qué número de fila quedó.");

@@ -190,7 +190,10 @@ export async function processInboundWhatsAppMessage({
     });
   } catch (err) {
     if (err instanceof RateLimitError) {
-      const reason = `Se derivó a un humano porque se alcanzó el límite de uso gratuito de ${err.provider === "groq" ? "Groq" : "Gemini"} (no es el límite de conversaciones del plan).`;
+      // err.message ya distingue de qué modelo se trata (texto vs transcripción de audio, cada
+      // uno con su propia cuota en Groq) — antes se descartaba a favor de un texto genérico que
+      // no permitía saber cuál de los dos se había quedado sin cuota.
+      const reason = `Se derivó a un humano: ${err.message}`;
       await prisma.conversation.update({
         where: { id: conversation.id },
         data: { status: "HANDED_OFF", aiPaused: true },
