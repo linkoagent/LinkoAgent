@@ -3,49 +3,54 @@ import { prisma } from "@/lib/prisma";
 import { detectIntent, detectSentiment } from "@/lib/ai/heuristics";
 import { searchKnowledge } from "@/lib/ai/knowledge";
 import { runAgentOnMessage, summarizeVoiceTranscript } from "@/lib/ai/agentEngine";
-import { sendWhatsAppMessage } from "@/lib/whatsapp/client";
 import { downloadWhatsAppMedia } from "@/lib/whatsapp/media";
 import { transcribeAudio, TRANSCRIPTION_SUMMARY_THRESHOLD } from "@/lib/ai/transcription";
 import { registerNewConversationUsage } from "@/lib/billing";
 import { RateLimitError } from "@/lib/ai/errors";
 import { notifyHumanHandoff } from "@/lib/notifications";
+import { getChannelAdapter } from "./registry";
 
-export interface InboundWhatsAppMessage {
+export interface InboundChannelMessage {
   channel: Channel;
-  fromPhone: string;
+  /** Identidad del cliente en ese canal: número de teléfono en WhatsApp, IGSID en Instagram. */
+  channelUserId: string;
   fromName?: string | null;
   text: string;
+  /** Solo WhatsApp lo usa hoy — audio en otros canales queda fuera de esta fase a propósito. */
   audio?: { mediaId: string; mimeType: string };
   channelMessageId?: string;
 }
 
 /**
- * Corazón del flujo conversacional: crea/recupera cliente y conversación, guarda el
- * mensaje entrante, y si la IA no está pausada, genera y envía la respuesta.
- * La usan tanto el webhook real de Meta como el simulador de mensajes.
+ * Corazón del flujo conversacional, agnóstico de canal: crea/recupera cliente y conversación,
+ * guarda el mensaje entrante, y si la IA no está pausada, genera y envía la respuesta a través
+ * del adapter del canal que corresponda (WhatsApp, Instagram, o el que siga). La usan tanto los
+ * webhooks reales de cada plataforma como sus simuladores de mensajes.
  */
-export async function processInboundWhatsAppMessage({
+export async function processInboundChannelMessage({
   channel,
-  fromPhone,
+  channelUserId,
   fromName,
   text,
   audio,
   channelMessageId,
-}: InboundWhatsAppMessage) {
+}: InboundChannelMessage) {
   const customer = await prisma.customer.upsert({
     where: {
       companyId_channelType_channelUserId: {
         companyId: channel.companyId,
-        channelType: "WHATSAPP",
-        channelUserId: fromPhone,
+        channelType: channel.type,
+        channelUserId,
       },
     },
     update: { lastContactAt: new Date(), ...(fromName ? { name: fromName } : {}) },
     create: {
       companyId: channel.companyId,
-      channelType: "WHATSAPP",
-      channelUserId: fromPhone,
-      phone: fromPhone,
+      channelType: channel.type,
+      channelUserId,
+      // El teléfono es un campo de display específico de WhatsApp — en otros canales (Instagram)
+      // no hay un teléfono real, channelUserId ya es la identidad (IGSID).
+      phone: channel.type === "WHATSAPP" ? channelUserId : null,
       name: fromName ?? null,
     },
   });
@@ -89,7 +94,7 @@ export async function processInboundWhatsAppMessage({
   }
 
   let transcription: { text: string; language: string | null; confidence: number | null } | null = null;
-  if (audio) {
+  if (audio && channel.type === "WHATSAPP") {
     try {
       const media = await downloadWhatsAppMedia(audio.mediaId, channel);
       transcription = await transcribeAudio(media.buffer, media.mimeType);
@@ -151,13 +156,17 @@ export async function processInboundWhatsAppMessage({
   }
 
   let agent = conversation.agentId ? await prisma.agent.findUnique({ where: { id: conversation.agentId } }) : null;
+  let agentChannel = agent ? await prisma.agentChannel.findUnique({ where: { agentId_channelId: { agentId: agent.id, channelId: channel.id } } }) : null;
 
   if (!agent) {
-    agent = await prisma.agent.findFirst({
+    const match = await prisma.agent.findFirst({
       where: { companyId: channel.companyId, isActive: true, channels: { some: { channelId: channel.id } } },
       orderBy: { createdAt: "asc" },
+      include: { channels: { where: { channelId: channel.id } } },
     });
-    if (agent) {
+    if (match) {
+      agent = match;
+      agentChannel = match.channels[0] ?? null;
       conversation = await prisma.conversation.update({ where: { id: conversation.id }, data: { agentId: agent.id } });
     }
   }
@@ -186,7 +195,8 @@ export async function processInboundWhatsAppMessage({
       customerMessage: text,
       customerId: customer.id,
       conversationId: conversation.id,
-      customerPhone: fromPhone,
+      customerPhone: channelUserId,
+      toneOverride: agentChannel?.toneOverride,
     });
   } catch (err) {
     if (err instanceof RateLimitError) {
@@ -261,16 +271,14 @@ export async function processInboundWhatsAppMessage({
     await notifyHumanHandoff(conversation.id, reason);
   }
 
-  try {
-    await sendWhatsAppMessage({ channel, to: fromPhone, text: result.content });
-  } catch (err) {
+  const sendResult = await getChannelAdapter(channel.type).sendTextMessage({ channel, to: channelUserId, text: result.content });
+  if (!sendResult.ok) {
     // El mensaje de la IA ya quedó guardado en el historial (con el texto real, no el error):
-    // lo único que falló fue la entrega por WhatsApp. En vez de dejar la conversación en el
-    // limbo sin que nadie se entere, se deriva a un humano — el cliente no debería quedarse
-    // esperando una respuesta que nunca va a llegar sin que nadie de tu equipo lo note.
-    const error = err instanceof Error ? err.message : "Error enviando el mensaje por WhatsApp";
-    const reason = "No se pudo entregar la respuesta del agente por WhatsApp (falla de conexión con Meta) — revisar el canal.";
-    await prisma.channel.update({ where: { id: channel.id }, data: { lastError: error } });
+    // lo único que falló fue la entrega. En vez de dejar la conversación en el limbo sin que
+    // nadie se entere, se deriva a un humano — el cliente no debería quedarse esperando una
+    // respuesta que nunca va a llegar sin que nadie de tu equipo lo note.
+    const reason = `No se pudo entregar la respuesta del agente por ${channel.type} (${sendResult.error ?? "falla de conexión"}) — revisar el canal.`;
+    await prisma.channel.update({ where: { id: channel.id }, data: { lastError: sendResult.error ?? "Error de entrega" } });
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: { status: "HANDED_OFF", aiPaused: true },

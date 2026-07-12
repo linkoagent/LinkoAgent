@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyContext } from "@/lib/tenant";
-import { sendWhatsAppMessage } from "@/lib/whatsapp/client";
+import { getChannelAdapter } from "@/lib/channels/registry";
 import { summarizeMessages } from "@/lib/ai/agentEngine";
 
 async function loadConversation(conversationId: string, companyId: string) {
@@ -32,15 +32,16 @@ export async function sendManualReply(conversationId: string, text: string): Pro
     data: { conversationId, sender: "HUMAN", content: text.trim() },
   });
 
-  if (conversation.channel.type === "WHATSAPP") {
-    try {
-      await sendWhatsAppMessage({ channel: conversation.channel, to: conversation.customer.channelUserId, text: text.trim() });
-    } catch (err) {
-      const error = err instanceof Error ? err.message : "Error enviando el mensaje por WhatsApp";
-      await prisma.channel.update({ where: { id: conversation.channel.id }, data: { lastError: error } });
-      revalidatePath(`/inbox/${conversationId}`);
-      return { ok: false, error };
-    }
+  const sendResult = await getChannelAdapter(conversation.channel.type).sendTextMessage({
+    channel: conversation.channel,
+    to: conversation.customer.channelUserId,
+    text: text.trim(),
+  });
+  if (!sendResult.ok) {
+    const error = sendResult.error ?? `Error enviando el mensaje por ${conversation.channel.type}`;
+    await prisma.channel.update({ where: { id: conversation.channel.id }, data: { lastError: error } });
+    revalidatePath(`/inbox/${conversationId}`);
+    return { ok: false, error };
   }
 
   await prisma.conversation.update({

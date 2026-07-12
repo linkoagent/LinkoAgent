@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/tenant";
 
 function readAgentForm(formData: FormData) {
+  const channelIds = formData.getAll("channelIds").map(String);
   return {
     name: String(formData.get("name") ?? "").trim(),
     type: String(formData.get("type") ?? "ATENCION") as AgentType,
@@ -17,7 +18,12 @@ function readAgentForm(formData: FormData) {
     handoffRules: String(formData.get("handoffRules") ?? "").trim() || null,
     isActive: formData.get("isActive") === "on",
     actionsEnabled: formData.get("actionsEnabled") === "on",
-    channelIds: formData.getAll("channelIds").map(String),
+    channelIds,
+    // Tono distinto por canal (ej. más informal en Instagram) — null cuando no se cargó nada,
+    // así AgentChannel cae al tono general del agente.
+    toneOverrides: Object.fromEntries(
+      channelIds.map((channelId) => [channelId, String(formData.get(`toneOverride_${channelId}`) ?? "").trim() || null])
+    ),
     knowledgeSourceIds: formData.getAll("knowledgeSourceIds").map(String),
   };
 }
@@ -39,7 +45,7 @@ export async function createAgent(formData: FormData) {
       handoffRules: data.handoffRules,
       isActive: data.isActive,
       actionsEnabled: data.actionsEnabled,
-      channels: { create: data.channelIds.map((channelId) => ({ channelId })) },
+      channels: { create: data.channelIds.map((channelId) => ({ channelId, toneOverride: data.toneOverrides[channelId] })) },
       knowledgeSources: { create: data.knowledgeSourceIds.map((sourceId) => ({ sourceId })) },
     },
   });
@@ -71,7 +77,9 @@ export async function updateAgent(agentId: string, formData: FormData) {
       },
     }),
     prisma.agentChannel.deleteMany({ where: { agentId } }),
-    prisma.agentChannel.createMany({ data: data.channelIds.map((channelId) => ({ agentId, channelId })) }),
+    prisma.agentChannel.createMany({
+      data: data.channelIds.map((channelId) => ({ agentId, channelId, toneOverride: data.toneOverrides[channelId] })),
+    }),
     prisma.agentKnowledgeSource.deleteMany({ where: { agentId } }),
     prisma.agentKnowledgeSource.createMany({
       data: data.knowledgeSourceIds.map((sourceId) => ({ agentId, sourceId })),

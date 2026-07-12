@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/tenant";
-import { testWhatsAppConnection, registerWhatsAppNumber } from "@/lib/whatsapp/client";
+import { registerWhatsAppNumber } from "@/lib/whatsapp/client";
+import { getChannelAdapter } from "@/lib/channels/registry";
 import {
   exchangeEmbeddedSignupCode,
   subscribeAppToWaba,
@@ -135,13 +136,24 @@ export async function completeEmbeddedSignup(params: {
  * Desconectar libera el Phone Number ID/WABA ID/token del todo (no solo cambia el estado):
  * como el token temporal de Meta vence a las 24hs igual, no tiene sentido guardar estos datos
  * "por las dudas" — y así el mismo número de prueba se puede reconectar a otra empresa sin
- * chocar con la restricción única de phoneNumberId.
+ * chocar con la restricción única de phoneNumberId. Genérico para cualquier canal: también
+ * limpia accountId/scope/metadata/tokenExpiresAt, usados por canales no-WhatsApp.
  */
 export async function disconnectChannel(channelId: string) {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
   await prisma.channel.updateMany({
     where: { id: channelId, companyId: ctx.companyId },
-    data: { status: "DISCONNECTED", connectedAt: null, phoneNumberId: null, wabaId: null, accessToken: null },
+    data: {
+      status: "DISCONNECTED",
+      connectedAt: null,
+      phoneNumberId: null,
+      wabaId: null,
+      accessToken: null,
+      accountId: null,
+      scope: null,
+      metadata: Prisma.JsonNull,
+      tokenExpiresAt: null,
+    },
   });
   revalidatePath("/channels");
 }
@@ -151,11 +163,11 @@ export async function testChannelConnection(channelId: string) {
   const channel = await prisma.channel.findFirst({ where: { id: channelId, companyId: ctx.companyId } });
   if (!channel) return { ok: false, mocked: false, error: "Canal no encontrado" };
 
-  const result = await testWhatsAppConnection(channel);
+  const result = await getChannelAdapter(channel.type).testConnection(channel);
 
   await prisma.channel.update({
     where: { id: channelId },
-    data: { lastError: result.ok ? null : "error" in result ? result.error ?? "Error de conexión" : "Error de conexión" },
+    data: { lastError: result.ok ? null : result.error ?? "Error de conexión" },
   });
 
   revalidatePath("/channels");

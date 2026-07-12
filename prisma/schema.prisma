@@ -245,6 +245,13 @@ model Channel {
   wabaId             String?
   accessToken        String?
   webhookVerifyToken String?
+  /// Genérico: null para WhatsApp (token de sistema, no vence); Instagram vence a los 60 días.
+  tokenExpiresAt     DateTime?
+  /// Genérico: scopes OAuth otorgados, mismo criterio que Integration.scope.
+  scope              String?
+  /// Genérico: datos propios de cada proveedor que no ameritan columna propia (ej. Instagram:
+  /// {username, followersCount, profilePictureUrl}).
+  metadata           Json?
   connectedAt        DateTime?
   lastMessageAt      DateTime?
   lastError          String?
@@ -255,6 +262,9 @@ model Channel {
   conversations Conversation[]
 
   @@index([companyId])
+  /// Resolución de webhook por (tipo, id de cuenta) — análogo a phoneNumberId, pero genérico para
+  /// cualquier canal que no tenga un identificador único propio como WhatsApp.
+  @@unique([type, accountId])
 }
 
 model Agent {
@@ -286,6 +296,8 @@ model Agent {
 model AgentChannel {
   agentId   String
   channelId String
+  /// Nullable: cuando no está seteado, se usa Agent.tone (mismo tono en todos los canales).
+  toneOverride String?
 
   agent   Agent   @relation(fields: [agentId], references: [id], onDelete: Cascade)
   channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)

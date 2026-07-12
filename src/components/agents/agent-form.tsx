@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,7 @@ export function AgentForm({
   channels,
   knowledgeSources,
   selectedChannelIds = [],
+  toneOverrides = {},
   selectedSourceIds = [],
   calendarConnected = false,
   action,
@@ -36,12 +37,15 @@ export function AgentForm({
   channels: Channel[];
   knowledgeSources: KnowledgeSource[];
   selectedChannelIds?: string[];
+  /** Tono distinto por canal (ej. más informal en Instagram) — null/ausente usa el tono general. */
+  toneOverrides?: Record<string, string | null>;
   selectedSourceIds?: string[];
   calendarConnected?: boolean;
   action: (formData: FormData) => void | Promise<void>;
   submitLabel?: string;
 }) {
   const [pending, startTransition] = useTransition();
+  const [checkedChannels, setCheckedChannels] = useState<Set<string>>(new Set(selectedChannelIds));
 
   return (
     <form
@@ -137,18 +141,36 @@ export function AgentForm({
 
       <div className="flex flex-col gap-2">
         <Label>Canales donde actúa</Label>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col gap-2">
           {channels.length === 0 && <p className="text-xs text-muted-foreground">Todavía no conectaste ningún canal.</p>}
           {channels.map((c) => (
-            <label key={c.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs">
-              <input
-                type="checkbox"
-                name="channelIds"
-                value={c.id}
-                defaultChecked={selectedChannelIds.includes(c.id)}
-              />
-              {c.type} {c.accountName ? `· ${c.accountName}` : ""}
-            </label>
+            <div key={c.id} className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs">
+                <input
+                  type="checkbox"
+                  name="channelIds"
+                  value={c.id}
+                  defaultChecked={selectedChannelIds.includes(c.id)}
+                  onChange={(e) =>
+                    setCheckedChannels((prev) => {
+                      const next = new Set(prev);
+                      if (e.target.checked) next.add(c.id);
+                      else next.delete(c.id);
+                      return next;
+                    })
+                  }
+                />
+                {c.type} {c.accountName ? `· ${c.accountName}` : ""}
+              </label>
+              {checkedChannels.has(c.id) && (
+                <Input
+                  name={`toneOverride_${c.id}`}
+                  defaultValue={toneOverrides[c.id] ?? ""}
+                  placeholder={`Tono distinto para ${c.type} (opcional, si no usa el tono general)`}
+                  className="h-8 max-w-xs text-xs"
+                />
+              )}
+            </div>
           ))}
         </div>
       </div>

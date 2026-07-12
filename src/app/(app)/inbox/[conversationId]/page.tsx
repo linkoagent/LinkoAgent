@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireCompanyContext } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
+import { ChannelIcon } from "@/components/channels/channel-icon";
 import { CONVERSATION_STATUS_LABELS, CHANNEL_TYPE_LABELS } from "@/lib/plans";
 import { capitalizeLabel } from "@/lib/utils";
 import {
@@ -37,11 +38,13 @@ export default async function ConversationPage({ params }: { params: { conversat
       <div className="flex h-[75vh] min-h-[520px] flex-col rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border p-4">
           <div>
-            <h1 className="font-display text-base font-semibold text-foreground">
+            <h1 className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
+              <ChannelIcon type={conversation.channel.type} />
               {conversation.customer.name ?? conversation.customer.phone ?? "Cliente"}
             </h1>
             <p className="text-xs text-muted-foreground">
-              {CHANNEL_TYPE_LABELS[conversation.channel.type] ?? conversation.channel.type} · {conversation.customer.phone}
+              {CHANNEL_TYPE_LABELS[conversation.channel.type] ?? conversation.channel.type}
+              {conversation.customer.phone ? ` · ${conversation.customer.phone}` : ""}
             </p>
           </div>
           <Badge variant="outline">{CONVERSATION_STATUS_LABELS[conversation.status] ?? conversation.status}</Badge>

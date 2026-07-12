@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { processInboundWhatsAppMessage } from "@/lib/whatsapp/inbound";
+import { processInboundChannelMessage } from "@/lib/channels/inbound";
 import { rateLimit } from "@/lib/rateLimit";
 
 /**
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     const audio = message.type === "audio" ? { mediaId: message.audio?.id as string, mimeType: message.audio?.mime_type as string } : undefined;
     const text: string = message.text?.body ?? (audio ? "" : "[mensaje no soportado en el MVP]");
 
-    await processInboundWhatsAppMessage({ channel, fromPhone, fromName, text, audio, channelMessageId: message.id });
+    await processInboundChannelMessage({ channel, channelUserId: fromPhone, fromName, text, audio, channelMessageId: message.id });
 
     return NextResponse.json({ ok: true });
   } catch (err) {

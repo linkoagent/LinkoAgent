@@ -6,15 +6,17 @@ import { processInboundChannelMessage } from "@/lib/channels/inbound";
 
 const schema = z.object({
   channelId: z.string().min(1),
-  fromPhone: z.string().min(4),
+  fromUserId: z.string().min(1),
   fromName: z.string().optional(),
   text: z.string().min(1),
+  isEcho: z.boolean().optional(),
 });
 
 /**
- * Simula un mensaje entrante de WhatsApp sin depender de una cuenta real de Meta:
- * corre exactamente el mismo pipeline que el webhook real (`processInboundChannelMessage`),
- * así se puede probar el circuito completo (IA + conocimiento + inbox + métricas) hoy mismo.
+ * Simula un DM entrante de Instagram sin depender de una cuenta real de Meta: corre exactamente
+ * el mismo pipeline que el webhook real (`processInboundChannelMessage`). `isEcho` permite probar
+ * explícitamente el caso de mensajes que la propia cuenta manda (deben ignorarse, no generar
+ * conversación) — es el único comportamiento sin equivalente en el simulador de WhatsApp.
  */
 export async function POST(req: Request) {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
@@ -22,6 +24,10 @@ export async function POST(req: Request) {
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
+  }
+
+  if (parsed.data.isEcho) {
+    return NextResponse.json({ ok: true, autoReplied: false, ignored: "is_echo" });
   }
 
   const channel = await prisma.channel.findFirst({
@@ -33,7 +39,7 @@ export async function POST(req: Request) {
 
   const result = await processInboundChannelMessage({
     channel,
-    channelUserId: parsed.data.fromPhone,
+    channelUserId: parsed.data.fromUserId,
     fromName: parsed.data.fromName,
     text: parsed.data.text,
   });

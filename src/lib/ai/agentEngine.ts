@@ -9,7 +9,13 @@ import { shouldHandoffToHuman } from "@/lib/ai/heuristics";
 import { AGENT_TYPE_LABELS } from "@/lib/plans";
 import type { KnowledgeMatch } from "@/lib/ai/knowledge";
 
-function buildSystemPrompt(agent: Agent, knowledgeChunks: KnowledgeMatch[], timezone: string, hasActions: boolean) {
+function buildSystemPrompt(
+  agent: Agent,
+  knowledgeChunks: KnowledgeMatch[],
+  timezone: string,
+  hasActions: boolean,
+  toneOverride?: string | null
+) {
   const knowledgeBlock = knowledgeChunks.length
     ? `CONOCIMIENTO:\n${knowledgeChunks.map((c, i) => `[${i + 1}] ${c.content}`).join("\n\n")}`
     : null;
@@ -19,10 +25,14 @@ function buildSystemPrompt(agent: Agent, knowledgeChunks: KnowledgeMatch[], time
   const now = formatInTimeZone(new Date(), timezone, "EEEE d 'de' MMMM 'de' yyyy, HH:mm", { locale: es });
   const dateContext = `Fecha y hora actual: ${now} (zona horaria ${timezone}). Cuando uses tools de turnos, resolvé siempre fechas relativas ("mañana", "el viernes que viene") contra esta fecha, y pasá el parámetro de fecha/hora en formato YYYY-MM-DDTHH:mm:ss, sin offset de zona (se interpreta como hora local de la empresa).`;
 
+  // toneOverride viene de AgentChannel (tono distinto por canal, ej. más informal en Instagram
+  // que en WhatsApp) — cuando no está seteado, cae al tono general del agente.
+  const tone = toneOverride ?? agent.tone;
+
   return [
     `Sos "${agent.name}", un agente de IA de tipo "${AGENT_TYPE_LABELS[agent.type] ?? agent.type}" que atiende por chat en nombre de una empresa.`,
     agent.objective ? `Objetivo: ${agent.objective}` : null,
-    agent.tone ? `Tono de voz: ${agent.tone}` : null,
+    tone ? `Tono de voz: ${tone}` : null,
     `Instrucciones específicas: ${agent.instructions}`,
     agent.handoffRules ? `Reglas de derivación a un humano: ${agent.handoffRules}` : null,
     knowledgeBlock,
@@ -45,8 +55,9 @@ export async function runAgentOnMessage(params: {
   customerId?: string;
   conversationId?: string;
   customerPhone?: string;
+  toneOverride?: string | null;
 }): Promise<AgentRunResult> {
-  const { agent, knowledgeChunks, history, customerMessage, customerId, conversationId, customerPhone } = params;
+  const { agent, knowledgeChunks, history, customerMessage, customerId, conversationId, customerPhone, toneOverride } = params;
 
   const company = await prisma.company.findUniqueOrThrow({
     where: { id: agent.companyId },
@@ -58,7 +69,7 @@ export async function runAgentOnMessage(params: {
     .filter(Boolean);
 
   const tools = await getToolsForAgent(agent);
-  const systemPrompt = buildSystemPrompt(agent, knowledgeChunks, company.timezone, tools.length > 0);
+  const systemPrompt = buildSystemPrompt(agent, knowledgeChunks, company.timezone, tools.length > 0, toneOverride);
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },

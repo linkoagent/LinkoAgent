@@ -60,6 +60,7 @@ export default async function EditAgentPage({ params }: { params: { agentId: str
         channels={channels}
         knowledgeSources={knowledgeSources}
         selectedChannelIds={agent.channels.map((c) => c.channelId)}
+        toneOverrides={Object.fromEntries(agent.channels.map((c) => [c.channelId, c.toneOverride]))}
         selectedSourceIds={agent.knowledgeSources.map((s) => s.sourceId)}
         calendarConnected={calendarIntegration?.status === "CONNECTED"}
         action={updateWithId}
