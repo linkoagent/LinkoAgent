@@ -169,11 +169,15 @@ export async function processInboundWhatsAppMessage({
   let result;
   try {
     const knowledgeChunks = await searchKnowledge(agent.id, channel.companyId, text);
-    const history = await prisma.message.findMany({
+    // orderBy desc + take + reverse (no asc + take): con "asc" quedaban los 21 mensajes MÁS
+    // VIEJOS de toda la conversación, congelados para siempre en vez de los más recientes —
+    // pasados los 21 mensajes totales, el modelo perdía todo el contexto reciente.
+    const recentMessages = await prisma.message.findMany({
       where: { conversationId: conversation.id },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
       take: 21,
     });
+    const history = recentMessages.reverse();
 
     result = await runAgentOnMessage({
       agent,
