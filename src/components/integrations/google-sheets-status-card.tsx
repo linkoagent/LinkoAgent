@@ -84,8 +84,9 @@ export function GoogleSheetsStatusCard({ integration }: { integration: Integrati
       ) : (
         <form action={handleSubmit} className="flex flex-col gap-2">
           <p className="text-xs text-muted-foreground">
-            Cuenta conectada. Ahora pegá la URL o el ID de la Google Sheet donde llevás el stock (fila 1: Nombre, SKU,
-            Stock, Precio, Unidad).
+            Cuenta conectada. Ahora pegá la URL o el ID de la Google Sheet donde llevás tus productos o servicios —
+            usamos la que ya tengas armada, solo necesita encabezados en la fila 1 (nombre, y opcionalmente stock,
+            precio, SKU, unidad, en cualquier orden).
           </p>
           <div className="flex gap-2">
             <Input name="spreadsheetInput" placeholder="https://docs.google.com/spreadsheets/d/..." className="text-xs" />

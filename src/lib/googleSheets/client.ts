@@ -118,6 +118,25 @@ export interface SheetValues {
   values: string[][];
 }
 
+/** GET .../spreadsheets/{id} (sin /values) — devuelve el título REAL de la primera hoja/pestaña.
+ * No se puede asumir "Hoja1": Google nombra la primera pestaña según el idioma de la cuenta
+ * ("Sheet1" en inglés, "Hoja1" en español, o lo que sea que el usuario haya puesto a mano). */
+export async function getFirstSheetTitle(spreadsheetId: string, accessToken: string): Promise<string> {
+  if (GOOGLE_SHEETS_MOCK) return "Hoja1";
+
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}?fields=sheets.properties.title`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) {
+    throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, `No se pudo leer la lista de hojas de la planilla (${res.status}): ${await res.text()}`);
+  }
+  const data = await res.json();
+  const title = data.sheets?.[0]?.properties?.title;
+  if (!title) throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, "La planilla no tiene ninguna hoja.");
+  return title;
+}
+
 /** GET .../values/{range} — sin body. `values` puede venir más corto que el rango pedido (filas
  * vacías al final) y celdas intermedias faltar en el array de esa fila; quien llame no debe
  * asumir longitud fija por fila. */

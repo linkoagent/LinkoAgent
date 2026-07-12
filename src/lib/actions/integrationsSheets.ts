@@ -8,6 +8,8 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/tenant";
 import {
   getAuthUrl,
+  getFirstSheetTitle,
+  getValidAccessToken,
   GOOGLE_SHEETS_MOCK,
   GOOGLE_SHEETS_PROVIDER,
   GOOGLE_SHEETS_OAUTH_STATE_COOKIE,
@@ -70,8 +72,10 @@ function extractSpreadsheetId(input: string): string {
 }
 
 /** Paso 2 de la conexión (a diferencia de Calendar, acá no hay un "calendario primario" por
- * defecto): valida que se pueda leer la fila 1 de la planilla antes de guardarla, para dar un
- * error legible temprano en vez de que recién falle la primera vez que la IA intente usarla. */
+ * defecto): detecta el nombre REAL de la primera hoja/pestaña de la planilla (nunca se puede
+ * asumir "Hoja1" — depende del idioma de la cuenta de Google o de cómo la haya nombrado el
+ * usuario) y valida que se pueda leer la fila 1 antes de guardar, para dar un error legible
+ * temprano en vez de que recién falle la primera vez que la IA intente usarla. */
 export async function setGoogleSheetsSpreadsheet(formData: FormData): Promise<{ ok: boolean; error?: string }> {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
   const input = String(formData.get("spreadsheetInput") ?? "").trim();
@@ -84,14 +88,26 @@ export async function setGoogleSheetsSpreadsheet(formData: FormData): Promise<{ 
   });
   if (!integration) return { ok: false, error: "Primero conectá tu cuenta de Google." };
 
-  const updated = await prisma.integration.update({ where: { id: integration.id }, data: { spreadsheetId } });
+  let sheetName: string;
+  try {
+    const accessToken = await getValidAccessToken(integration);
+    sheetName = await getFirstSheetTitle(spreadsheetId, accessToken);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Error desconocido";
+    return { ok: false, error: `No pude abrir esa planilla: ${message}. Revisá que la URL/ID sea correcta y que la cuenta conectada tenga acceso.` };
+  }
+
+  const updated = await prisma.integration.update({ where: { id: integration.id }, data: { spreadsheetId, sheetName } });
 
   try {
     const provider = new GoogleSheetsInventoryProvider(updated);
     await provider.list();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error desconocido";
-    return { ok: false, error: `No pude leer esa planilla: ${message}. Revisá que la hoja se llame "${updated.sheetName ?? "Hoja1"}" y que las columnas Nombre/SKU/Stock/Precio/Unidad estén en la fila 1.` };
+    return {
+      ok: false,
+      error: `No pude leer los productos de "${sheetName}": ${message}. Revisá que la primera fila tenga encabezados (nombre, stock, precio, etc.).`,
+    };
   }
 
   revalidatePath("/integrations");
