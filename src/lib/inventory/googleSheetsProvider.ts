@@ -1,5 +1,5 @@
 import type { Integration } from "@prisma/client";
-import { GOOGLE_SHEETS_MOCK, getValidAccessToken, getValuesRange, updateRange } from "@/lib/googleSheets/client";
+import { GOOGLE_SHEETS_MOCK, getValidAccessToken, getValuesRange, updateRange, appendRow } from "@/lib/googleSheets/client";
 import type { InventoryItem, InventoryProvider, NewInventoryItem } from "./types";
 
 // Solo se usa en modo mock, para poder probar el comando de lenguaje natural de punta a punta
@@ -143,11 +143,44 @@ export class GoogleSheetsInventoryProvider implements InventoryProvider {
     return { ...item, stock: newStock };
   }
 
-  // Alta de filas nuevas fuera de alcance a propósito en el MVP (ver plan): agregar productos
-  // nuevos se hace directo en la planilla, no desde acá.
-  async create(_item: NewInventoryItem): Promise<InventoryItem> {
-    throw new Error(
-      "No se pueden crear productos nuevos automáticamente en la planilla conectada. Agregalo directo como una fila nueva en la Google Sheet."
-    );
+  async create(item: NewInventoryItem): Promise<InventoryItem> {
+    const rows = await this.getRawRows();
+    const { columns } = this.parseRows(rows);
+    if (columns.name === undefined) {
+      throw new Error(
+        'No encontré una columna de nombre en la fila 1. Poné un encabezado como "Nombre", "Producto" o "Servicio" en alguna columna.'
+      );
+    }
+
+    // El ancho de la fila a escribir cubre hasta la columna detectada más a la derecha, para no
+    // pisar ninguna otra columna que el cliente ya tenga (ej. una de notas, sin sinónimo reconocido).
+    const width = Math.max(...Object.values(columns).filter((v): v is number => v !== undefined)) + 1;
+    const rowValues: string[] = new Array(width).fill("");
+    rowValues[columns.name] = item.name;
+    if (columns.sku !== undefined && item.sku) rowValues[columns.sku] = item.sku;
+    if (columns.stock !== undefined) rowValues[columns.stock] = String(item.stock);
+    if (columns.price !== undefined && item.price != null) rowValues[columns.price] = String(item.price);
+    if (columns.unit !== undefined && item.unit) rowValues[columns.unit] = item.unit;
+
+    let sheetRowNumber: number;
+    if (GOOGLE_SHEETS_MOCK) {
+      this.mockRows.push(rowValues);
+      sheetRowNumber = this.mockRows.length;
+    } else {
+      const accessToken = await getValidAccessToken(this.integration);
+      const { updatedRange } = await appendRow(this.spreadsheetId, this.sheetName, rowValues, accessToken);
+      const rowMatch = updatedRange.match(/![A-Z]+(\d+)/);
+      if (!rowMatch) throw new Error("Se agregó la fila pero no pude confirmar en qué número de fila quedó.");
+      sheetRowNumber = Number(rowMatch[1]);
+    }
+
+    return {
+      id: String(sheetRowNumber),
+      name: item.name,
+      sku: item.sku ?? null,
+      stock: columns.stock !== undefined ? item.stock : 0,
+      price: item.price ?? null,
+      unit: item.unit ?? null,
+    };
   }
 }

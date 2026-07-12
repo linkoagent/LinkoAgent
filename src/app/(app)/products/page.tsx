@@ -4,6 +4,7 @@ import { getInventoryProviderForCompany } from "@/lib/inventory/providerFactory"
 import { NewProductForm } from "@/components/products/new-product-form";
 import { ProductRow } from "@/components/products/product-row";
 import { NlCommandBox } from "@/components/products/nl-command-box";
+import { SyncSheetButton } from "@/components/products/sync-sheet-button";
 import type { InventoryItem } from "@/lib/inventory/types";
 
 export default async function ProductsPage() {
@@ -45,26 +46,32 @@ export default async function ProductsPage() {
       <NlCommandBox />
 
       {isSheets && sheetsError ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          No se pudo leer la planilla conectada: {sheetsError} Revisá la conexión en{" "}
-          <a href="/integrations" className="underline">
-            Integraciones
-          </a>
-          .
+        <div className="flex items-start justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          <p>
+            No se pudo leer la planilla conectada: {sheetsError} Revisá la conexión en{" "}
+            <a href="/integrations" className="underline">
+              Integraciones
+            </a>
+            .
+          </p>
+          <SyncSheetButton />
         </div>
       ) : isSheets ? (
-        <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-          Stock conectado a Google Sheets — editá los productos ahí o con el cuadro de arriba.{" "}
-          {spreadsheetId && (
-            <a
-              href={`https://docs.google.com/spreadsheets/d/${spreadsheetId}`}
-              target="_blank"
-              rel="noreferrer"
-              className="underline text-foreground"
-            >
-              Abrir la planilla
-            </a>
-          )}
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+          <p>
+            Stock conectado a Google Sheets — editá los productos ahí o con el cuadro de arriba.{" "}
+            {spreadsheetId && (
+              <a
+                href={`https://docs.google.com/spreadsheets/d/${spreadsheetId}`}
+                target="_blank"
+                rel="noreferrer"
+                className="underline text-foreground"
+              >
+                Abrir la planilla
+              </a>
+            )}
+          </p>
+          <SyncSheetButton />
         </div>
       ) : (
         <NewProductForm />

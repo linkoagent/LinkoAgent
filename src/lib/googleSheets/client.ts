@@ -1,6 +1,7 @@
 import type { Integration } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { IntegrationAuthError } from "@/lib/ai/errors";
+import { friendlyGoogleApiError } from "@/lib/googleApiError";
 
 export const GOOGLE_SHEETS_PROVIDER = "GOOGLE_SHEETS" as const;
 export const GOOGLE_SHEETS_OAUTH_STATE_COOKIE = "google_sheets_oauth_state";
@@ -56,7 +57,7 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleTokenRe
     }),
   });
   if (!res.ok) {
-    throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, `No se pudo intercambiar el código de Google (${res.status}): ${await res.text()}`);
+    throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, friendlyGoogleApiError(res.status, await res.text(), "planilla"));
   }
   return res.json();
 }
@@ -73,7 +74,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<GoogleTo
     }),
   });
   if (!res.ok) {
-    throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, `Token de Google Sheets inválido o revocado (${res.status}): ${await res.text()}`);
+    throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, friendlyGoogleApiError(res.status, await res.text(), "planilla"));
   }
   return res.json();
 }
@@ -129,7 +130,7 @@ export async function getFirstSheetTitle(spreadsheetId: string, accessToken: str
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!res.ok) {
-    throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, `No se pudo leer la lista de hojas de la planilla (${res.status}): ${await res.text()}`);
+    throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, friendlyGoogleApiError(res.status, await res.text(), "planilla"));
   }
   const data = await res.json();
   const title = data.sheets?.[0]?.properties?.title;
@@ -148,7 +149,7 @@ export async function getValuesRange(spreadsheetId: string, range: string, acces
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!res.ok) {
-    throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, `No se pudo leer la planilla (${res.status}): ${await res.text()}`);
+    throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, friendlyGoogleApiError(res.status, await res.text(), "planilla"));
   }
   const data: SheetValues = await res.json();
   return data.values ?? [];
@@ -168,6 +169,27 @@ export async function updateRange(spreadsheetId: string, range: string, values: 
     }
   );
   if (!res.ok) {
-    throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, `No se pudo actualizar la planilla (${res.status}): ${await res.text()}`);
+    throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, friendlyGoogleApiError(res.status, await res.text(), "planilla"));
   }
+}
+
+/** POST .../values/{range}:append — agrega una fila nueva después de la última con datos, sin
+ * tener que calcular de antemano en qué número de fila cae. Devuelve el rango real donde quedó
+ * escrita (ej. "Hoja1!A5:E5"), de donde se extrae el número de fila para el `id` del ítem. */
+export async function appendRow(spreadsheetId: string, sheetName: string, values: unknown[], accessToken: string): Promise<{ updatedRange: string }> {
+  if (GOOGLE_SHEETS_MOCK) return { updatedRange: `${sheetName}!A1` };
+
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ range: sheetName, majorDimension: "ROWS", values: [values] }),
+    }
+  );
+  if (!res.ok) {
+    throw new IntegrationAuthError(GOOGLE_SHEETS_PROVIDER, friendlyGoogleApiError(res.status, await res.text(), "planilla"));
+  }
+  const data = await res.json();
+  return { updatedRange: data.updates?.updatedRange ?? "" };
 }

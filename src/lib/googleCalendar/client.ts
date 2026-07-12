@@ -1,6 +1,7 @@
 import type { Integration } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { IntegrationAuthError } from "@/lib/ai/errors";
+import { friendlyGoogleApiError } from "@/lib/googleApiError";
 
 export const GOOGLE_CALENDAR_PROVIDER = "GOOGLE_CALENDAR" as const;
 export const GOOGLE_CALENDAR_OAUTH_STATE_COOKIE = "google_calendar_oauth_state";
@@ -58,7 +59,7 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleTokenRe
     }),
   });
   if (!res.ok) {
-    throw new IntegrationAuthError(GOOGLE_CALENDAR_PROVIDER, `No se pudo intercambiar el código de Google (${res.status}): ${await res.text()}`);
+    throw new IntegrationAuthError(GOOGLE_CALENDAR_PROVIDER, friendlyGoogleApiError(res.status, await res.text(), "calendario"));
   }
   return res.json();
 }
@@ -75,7 +76,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<GoogleTo
     }),
   });
   if (!res.ok) {
-    throw new IntegrationAuthError(GOOGLE_CALENDAR_PROVIDER, `Token de Google Calendar inválido o revocado (${res.status}): ${await res.text()}`);
+    throw new IntegrationAuthError(GOOGLE_CALENDAR_PROVIDER, friendlyGoogleApiError(res.status, await res.text(), "calendario"));
   }
   return res.json();
 }
@@ -139,7 +140,7 @@ export async function queryFreeBusy(params: {
     body: JSON.stringify({ timeMin, timeMax, items: [{ id: calendarId }] }),
   });
   if (!res.ok) {
-    throw new IntegrationAuthError(GOOGLE_CALENDAR_PROVIDER, `No se pudo consultar disponibilidad (${res.status}): ${await res.text()}`);
+    throw new IntegrationAuthError(GOOGLE_CALENDAR_PROVIDER, friendlyGoogleApiError(res.status, await res.text(), "calendario"));
   }
   const data = await res.json();
   return data.calendars?.[calendarId]?.busy ?? [];
@@ -168,7 +169,7 @@ export async function insertEvent(params: {
     }),
   });
   if (!res.ok) {
-    throw new IntegrationAuthError(GOOGLE_CALENDAR_PROVIDER, `No se pudo crear el turno en Google Calendar (${res.status}): ${await res.text()}`);
+    throw new IntegrationAuthError(GOOGLE_CALENDAR_PROVIDER, friendlyGoogleApiError(res.status, await res.text(), "calendario"));
   }
   const data = await res.json();
   return { id: data.id };
@@ -197,7 +198,7 @@ export async function patchEvent(params: {
     }
   );
   if (!res.ok) {
-    throw new IntegrationAuthError(GOOGLE_CALENDAR_PROVIDER, `No se pudo reprogramar el turno en Google Calendar (${res.status}): ${await res.text()}`);
+    throw new IntegrationAuthError(GOOGLE_CALENDAR_PROVIDER, friendlyGoogleApiError(res.status, await res.text(), "calendario"));
   }
 }
 
@@ -211,6 +212,6 @@ export async function deleteEvent(params: { accessToken: string; calendarId: str
   );
   // 410 Gone = ya estaba borrado en Google; lo tratamos como éxito (idempotente).
   if (!res.ok && res.status !== 410) {
-    throw new IntegrationAuthError(GOOGLE_CALENDAR_PROVIDER, `No se pudo cancelar el turno en Google Calendar (${res.status}): ${await res.text()}`);
+    throw new IntegrationAuthError(GOOGLE_CALENDAR_PROVIDER, friendlyGoogleApiError(res.status, await res.text(), "calendario"));
   }
 }
