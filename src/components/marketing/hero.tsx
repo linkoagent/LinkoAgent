@@ -30,7 +30,7 @@ export function MarketingHero() {
               title={hero.badge}
               width={576}
               height={288}
-              className="h-9 w-auto rounded-md bg-white p-1 shadow-sm"
+              className="h-12 w-auto"
             />
           </div>
           <h1 className="mt-6 text-4xl font-bold leading-[1.05] text-foreground sm:text-5xl">{hero.title}</h1>
