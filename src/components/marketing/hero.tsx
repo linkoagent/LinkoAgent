@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { MarketingDashboardMock } from "./dashboard-mock";
 import { useLocale, useMarketingContent } from "./locale-provider";
@@ -19,9 +20,19 @@ export function MarketingHero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: EASE }}
         >
-          <span className="inline-flex items-center rounded-full bg-primary-soft/15 px-3 py-1 font-display text-[11px] uppercase tracking-wide text-primary">
-            {hero.eyebrow}
-          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center rounded-full bg-primary-soft/15 px-3 py-1 font-display text-[11px] uppercase tracking-wide text-primary">
+              {hero.eyebrow}
+            </span>
+            <Image
+              src="/metatechprov.png"
+              alt={hero.badge}
+              title={hero.badge}
+              width={576}
+              height={288}
+              className="h-9 w-auto rounded-md bg-white p-1 shadow-sm"
+            />
+          </div>
           <h1 className="mt-6 text-4xl font-bold leading-[1.05] text-foreground sm:text-5xl">{hero.title}</h1>
           <p className="mt-4 font-display text-lg text-foreground">{hero.subtitle}</p>
           <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-muted-foreground">{hero.body}</p>

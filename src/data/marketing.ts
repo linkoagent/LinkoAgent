@@ -11,7 +11,7 @@ export interface MarketingPlan {
 
 export interface MarketingContent {
   nav: { label: string; href: string }[];
-  hero: { eyebrow: string; title: string; subtitle: string; body: string; chips: string[] };
+  hero: { eyebrow: string; badge: string; title: string; subtitle: string; body: string; chips: string[] };
   rubros: string[];
   features: { kicker: string; title: string; body: string; bullets: string[]; cta: string }[];
   steps: { n: string; title: string; body: string }[];
@@ -41,10 +41,11 @@ export const MARKETING_CONTENT: Record<Locale, MarketingContent> = {
     ],
     hero: {
       eyebrow: "Agentes de IA para empresas",
+      badge: "Meta Tech Provider certificado",
       title: "Tu equipo de agentes de IA, disponible 24/7.",
       subtitle: "Conversaciones que trabajan para tu negocio.",
-      body: "Automatizá WhatsApp con agentes de IA que responden, venden y hacen seguimiento — sin escribir código. Instagram y Messenger llegan en la próxima etapa.",
-      chips: ["WhatsApp", "Instagram y Messenger (próximamente)"],
+      body: "Automatizá WhatsApp e Instagram con agentes de IA que responden, venden y hacen seguimiento — sin escribir código.",
+      chips: ["WhatsApp", "Instagram"],
     },
     rubros: [
       "Ecommerce",
@@ -86,9 +87,9 @@ export const MARKETING_CONTENT: Record<Locale, MarketingContent> = {
       {
         kicker: "Linko Inbox + CRM",
         title: "Todos tus canales, un solo lugar",
-        body: "WhatsApp centralizado en una bandeja única, con historial completo, etiquetas, notas y derivación a un humano cuando la conversación lo necesita. Instagram y Messenger se suman en la próxima etapa.",
+        body: "WhatsApp e Instagram centralizados en una bandeja única, con historial completo, etiquetas, notas y derivación a un humano cuando la conversación lo necesita.",
         bullets: [
-          "Bandeja centralizada de WhatsApp (más canales, próximamente)",
+          "Bandeja centralizada de WhatsApp e Instagram",
           "Historial completo por contacto",
           "Etiquetas y notas de seguimiento",
           "Derivación a humano sin perder contexto",
@@ -196,7 +197,7 @@ export const MARKETING_CONTENT: Record<Locale, MarketingContent> = {
     faqs: [
       { q: "¿La IA reemplaza completamente a una persona?", a: "No. Resuelve las consultas repetitivas y deriva a un humano lo que realmente necesita una persona." },
       { q: "¿Es legal usar un asistente de IA para atender por WhatsApp?", a: "Sí. Linko Agent se conecta mediante la API oficial de WhatsApp Business (Meta Cloud API), dentro de los términos de uso de Meta." },
-      { q: "¿Funciona con Instagram y Messenger, o solo con WhatsApp?", a: "Por ahora funciona con WhatsApp. Instagram y Messenger están en el roadmap para la próxima etapa." },
+      { q: "¿Funciona con Instagram, o solo con WhatsApp?", a: "Funciona con WhatsApp e Instagram." },
       { q: "¿Necesito conocimientos técnicos para configurarlo?", a: "No. El equipo de Linko hace la configuración inicial; el día a día se maneja desde un panel simple." },
       { q: "¿Puedo pausar o controlar cuándo responde el agente?", a: "Sí, podés pausarlo por conversación o por horario, y definir cuándo debe derivar a una persona." },
       { q: "¿Qué pasa si supero el límite de conversaciones de mi plan?", a: "Se cobra un excedente por conversación adicional, o podés subir de plan en cualquier momento." },
@@ -235,10 +236,11 @@ export const MARKETING_CONTENT: Record<Locale, MarketingContent> = {
     ],
     hero: {
       eyebrow: "AI agents for businesses",
+      badge: "Certified Meta Tech Provider",
       title: "Your team of AI agents, available 24/7.",
       subtitle: "Conversations that work for your business.",
-      body: "Automate WhatsApp with AI agents that answer, sell, and follow up — no code required. Instagram and Messenger are coming in the next stage.",
-      chips: ["WhatsApp", "Instagram & Messenger (coming soon)"],
+      body: "Automate WhatsApp and Instagram with AI agents that answer, sell, and follow up — no code required.",
+      chips: ["WhatsApp", "Instagram"],
     },
     rubros: [
       "Ecommerce",
@@ -280,9 +282,9 @@ export const MARKETING_CONTENT: Record<Locale, MarketingContent> = {
       {
         kicker: "Linko Inbox + CRM",
         title: "All your channels, one place",
-        body: "WhatsApp centralized in a single inbox, with full history, tags, notes, and handoff to a human whenever the conversation needs it. Instagram and Messenger join in the next stage.",
+        body: "WhatsApp and Instagram centralized in a single inbox, with full history, tags, notes, and handoff to a human whenever the conversation needs it.",
         bullets: [
-          "Centralized WhatsApp inbox (more channels coming soon)",
+          "Centralized WhatsApp and Instagram inbox",
           "Full history per contact",
           "Tags and follow-up notes",
           "Handoff to a human without losing context",
@@ -390,7 +392,7 @@ export const MARKETING_CONTENT: Record<Locale, MarketingContent> = {
     faqs: [
       { q: "Does the AI fully replace a person?", a: "No. It resolves repetitive inquiries and hands off to a human whatever genuinely needs a person." },
       { q: "Is it legal to use an AI assistant to handle WhatsApp?", a: "Yes. Linko Agent connects through the official WhatsApp Business API (Meta Cloud API), within Meta's terms of use." },
-      { q: "Does it work with Instagram and Messenger, or only WhatsApp?", a: "For now it works with WhatsApp. Instagram and Messenger are on the roadmap for the next stage." },
+      { q: "Does it work with Instagram, or only WhatsApp?", a: "It works with WhatsApp and Instagram." },
       { q: "Do I need technical knowledge to set it up?", a: "No. The Linko team handles the initial setup; day-to-day is managed from a simple panel." },
       { q: "Can I pause or control when the agent responds?", a: "Yes, you can pause it per conversation or by schedule, and define when it should hand off to a person." },
       { q: "What happens if I go over my plan's conversation limit?", a: "An overage fee is charged per additional conversation, or you can upgrade your plan at any time." },

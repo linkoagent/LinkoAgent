@@ -159,7 +159,6 @@ export function MarketingContact() {
                 >
                   <option>WhatsApp</option>
                   <option>Instagram</option>
-                  <option>Messenger</option>
                   <option>{locale === "es" ? "Varios canales" : "Multiple channels"}</option>
                 </select>
               </label>

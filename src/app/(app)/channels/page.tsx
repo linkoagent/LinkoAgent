@@ -25,7 +25,7 @@ export default async function ChannelsPage({
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="font-display text-2xl font-semibold text-foreground">Canales</h1>
-        <p className="mt-1 text-sm text-muted-foreground">WhatsApp e Instagram Direct — Messenger llega en una próxima etapa.</p>
+        <p className="mt-1 text-sm text-muted-foreground">WhatsApp e Instagram Direct.</p>
       </div>
 
       {searchParams.error && (

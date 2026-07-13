@@ -29,10 +29,19 @@ export async function GET() {
     resubscribeResult = { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 
+  // Genera una llamada de prueba real de lectura de mensajes (instagram_manage_messages) contra
+  // el token guardado en el servidor — evita tener que copiar/pegar el token en Graph API
+  // Explorer, que es un dato sensible y no debería andar circulando por fuera de la app.
+  const conversationsRes = await fetch(`https://graph.instagram.com/${INSTAGRAM_GRAPH_VERSION}/${channel.accountId}/conversations`, {
+    headers: { Authorization: `Bearer ${channel.accessToken}` },
+  });
+  const conversationsData = await conversationsRes.json().catch(() => null);
+
   return NextResponse.json({
     accountId: channel.accountId,
     graphVersion: INSTAGRAM_GRAPH_VERSION,
     subscribedAppsCheck: { status: checkRes.status, data: checkData },
     resubscribeAttempt: resubscribeResult,
+    conversationsTestCall: { status: conversationsRes.status, data: conversationsData },
   });
 }

@@ -21,7 +21,7 @@ export default function PrivacidadPage() {
             <h2 className="font-display text-lg font-semibold text-foreground">1. Quiénes somos</h2>
             <p className="mt-2">
               Linko Agent ("nosotros", "la plataforma") es un servicio que permite a empresas crear y administrar
-              agentes de inteligencia artificial para atender WhatsApp, Instagram y Messenger. El responsable del
+              agentes de inteligencia artificial para atender WhatsApp e Instagram. El responsable del
               tratamiento de los datos descriptos en esta política es Linko Agent, contactable en{" "}
               <a href="mailto:hola@linkoagent.com" className="text-primary hover:underline">
                 hola@linkoagent.com
@@ -40,8 +40,8 @@ export default function PrivacidadPage() {
               </li>
               <li>
                 <span className="text-foreground">Datos de las conversaciones que gestionás:</span> número de
-                teléfono, nombre de perfil y mensajes de los clientes que te escriben por WhatsApp, Instagram o
-                Messenger, necesarios para que el agente de IA pueda responder.
+                teléfono, nombre de perfil y mensajes de los clientes que te escriben por WhatsApp o Instagram,
+                necesarios para que el agente de IA pueda responder.
               </li>
             </ul>
           </section>
@@ -71,7 +71,7 @@ export default function PrivacidadPage() {
               </li>
               <li>
                 <span className="text-foreground">Meta (WhatsApp Business Platform)</span>, para el envío y
-                recepción de mensajes de WhatsApp, Instagram y Messenger.
+                recepción de mensajes de WhatsApp e Instagram.
               </li>
               <li>
                 <span className="text-foreground">Resend</span>, para el envío de emails transaccionales.

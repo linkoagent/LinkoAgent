@@ -29,7 +29,7 @@ export default function TerminosPage() {
             <h2 className="font-display text-lg font-semibold text-foreground">2. Descripción del servicio</h2>
             <p className="mt-2">
               Linko Agent es una plataforma que permite crear y administrar agentes de inteligencia artificial para
-              atender clientes por WhatsApp, Instagram y Messenger, junto con herramientas de base de conocimiento,
+              atender clientes por WhatsApp e Instagram, junto con herramientas de base de conocimiento,
               inbox, métricas y administración de equipo.
             </p>
           </section>
