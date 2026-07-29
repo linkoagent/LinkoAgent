@@ -54,21 +54,44 @@ Abrir `http://localhost:3000` (o el puerto que indique la consola si el 3000 est
 También se puede probar un agente antes de activarlo desde **Agentes → Probar agente**, sin que
 cuente como uso del plan.
 
-## Modo mock (IA y WhatsApp)
+## Modo mock (IA, WhatsApp e Instagram)
 
 Mientras `OPENAI_API_KEY` esté vacía o `AI_MOCK_MODE=true`, las respuestas de IA son simuladas
 (usan la base de conocimiento cargada, pero sin llamar a OpenAI) y los embeddings son
 determinísticos — sirven para probar el pipeline, no para relevancia semántica real. Ídem con
 WhatsApp: mientras el canal no tenga `accessToken` real o `WHATSAPP_MOCK_MODE=true`, los envíos
-quedan simulados (se guardan igual, no llaman a la Graph API de Meta).
+quedan simulados (se guardan igual, no llaman a la Graph API de Meta). Instagram sigue el mismo
+patrón con `INSTAGRAM_MOCK_MODE`.
 
 Para pasar a modo real:
 
 - **OpenAI**: cargar `OPENAI_API_KEY` en `.env` (y opcionalmente `OPENAI_MODEL`).
-- **WhatsApp**: en Meta for Developers, crear una app con el producto *WhatsApp Business
-  Platform*, obtener `phoneNumberId`, `wabaId` y un `accessToken`, cargarlos en **Canales**, y
-  configurar el webhook de la app apuntando a `https://tu-dominio/api/webhooks/whatsapp` con el
-  verify token definido en `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
+- **WhatsApp (conexión manual)**: en Meta for Developers, crear una app con el producto
+  *WhatsApp Business Platform*, obtener `phoneNumberId`, `wabaId` y un `accessToken`, cargarlos
+  en **Canales**, y configurar el webhook de la app apuntando a
+  `https://tu-dominio/api/webhooks/whatsapp` con el verify token definido en
+  `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
+- **WhatsApp (Embedded Signup, "conectar con un click")**: requiere que la app de Meta tenga
+  aprobados Business Verification y App Review para `whatsapp_business_management` y
+  `whatsapp_business_messaging` (proceso de Meta, puede tardar semanas). Una vez aprobado: crear
+  una Configuration en *WhatsApp Manager → Embedded Signup*, y cargar `NEXT_PUBLIC_META_APP_ID`,
+  `META_APP_SECRET` y `NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID`. Sin App Review aprobado, el
+  botón funciona igual pero solo para usuarios agregados como *testers* de la app en Meta (hasta
+  25). Mientras estas variables no estén cargadas, el botón queda deshabilitado y el formulario
+  manual sigue disponible.
+- **Instagram Direct**: crear una app en Meta for Developers con el producto *Instagram API with
+  Instagram Login* (no requiere Página de Facebook), pedir los scopes
+  `instagram_business_basic` + `instagram_business_manage_messages`, y configurar el webhook
+  apuntando a `https://tu-dominio/api/webhooks/instagram` con el verify token definido en
+  `INSTAGRAM_WEBHOOK_VERIFY_TOKEN`. Cargar `NEXT_PUBLIC_INSTAGRAM_APP_ID` e
+  `INSTAGRAM_APP_SECRET`, y poner `INSTAGRAM_MOCK_MODE="false"`.
+  `instagram_business_manage_messages` requiere App Review + Business Verification de Meta —
+  hasta entonces solo funciona con cuentas agregadas como tester en la Meta App.
+- **Seguridad de los webhooks**: ambos endpoints (`/api/webhooks/whatsapp` y
+  `/api/webhooks/instagram`) validan la firma `X-Hub-Signature-256` que manda Meta contra
+  `META_APP_SECRET` / `INSTAGRAM_APP_SECRET` respectivamente. Mientras esos secrets no estén
+  cargados (modo dev/mock) la validación se salta; apenas se cargan, se exige — no hace falta
+  ningún cambio de código adicional al pasar a producción.
 
 ## Variables de entorno
 
@@ -79,6 +102,10 @@ Ver `.env.example`. Resumen:
 - `NEXTAUTH_URL` / `NEXTAUTH_SECRET` — requeridas por NextAuth.
 - `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_EMBEDDING_MODEL`, `AI_MOCK_MODE`.
 - `WHATSAPP_MOCK_MODE`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_GRAPH_API_VERSION`.
+- `NEXT_PUBLIC_META_APP_ID`, `META_APP_SECRET`, `NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID` —
+  WhatsApp Embedded Signup ("conectar con un click"); también firman los webhooks de WhatsApp.
+- `NEXT_PUBLIC_INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `INSTAGRAM_MOCK_MODE`,
+  `INSTAGRAM_WEBHOOK_VERIFY_TOKEN`, `INSTAGRAM_GRAPH_API_VERSION`.
 - `RESEND_API_KEY`, `EMAIL_FROM` — todavía sin usar en el código (ver "Dominio y producción").
 
 ## Dominio y producción (linkoagent.com)
@@ -96,9 +123,13 @@ por el usuario. Para pasar de local a producción:
    formulario de contacto sigue guardando los leads en la tabla `ContactRequest` sin notificar
    por email — no se pierde nada, solo falta el aviso automático (próxima etapa).
 4. **WhatsApp real**: cuenta de Meta for Developers con el producto *WhatsApp Business
-   Platform*, apuntando el webhook a `https://linkoagent.com/api/webhooks/whatsapp`.
-5. **OpenAI real**: cargar `OPENAI_API_KEY` cuando se quiera dejar de usar el modo simulado.
-6. **DNS**: apuntar `linkoagent.com` al hosting elegido (p. ej. Vercel: registros A/CNAME que
+   Platform*, apuntando el webhook a `https://linkoagent.com/api/webhooks/whatsapp`. Para el
+   botón de "conectar con un click" (Embedded Signup) ver el detalle en "Modo mock" más arriba.
+5. **Instagram real**: cuenta de Meta for Developers con el producto *Instagram API with
+   Instagram Login*, webhook apuntando a `https://linkoagent.com/api/webhooks/instagram`. Ver
+   detalle en "Modo mock" más arriba.
+6. **OpenAI real**: cargar `OPENAI_API_KEY` cuando se quiera dejar de usar el modo simulado.
+7. **DNS**: apuntar `linkoagent.com` al hosting elegido (p. ej. Vercel: registros A/CNAME que
    indica el propio panel de Vercel al agregar el dominio al proyecto).
 
 Nada de esto lo puede hacer el asistente por su cuenta — son cuentas y accesos que solo tiene el
@@ -115,9 +146,10 @@ usuario. El código ya está preparado para leer estas variables apenas existan.
 
 ## Qué falta a propósito (siguiente etapa)
 
-Instagram y Messenger, carga de PDF a la base de conocimiento, CRM de leads con kanban de etapas,
-motor de automatizaciones con reglas, múltiples proveedores de IA, voz, e integraciones externas
+Messenger, carga de PDF a la base de conocimiento, CRM de leads con kanban de etapas, motor de
+automatizaciones con reglas, múltiples proveedores de IA, voz, e integraciones externas
 (Tiendanube, Calendly, etc.) — los modelos de datos ya existen en el schema, falta la UI/flujo.
+(Instagram Direct ya está implementado — OAuth, webhook y adapter — ver "Modo mock" arriba.)
 
 ## Deploy sugerido
 

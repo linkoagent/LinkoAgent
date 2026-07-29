@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { processInboundChannelMessage } from "@/lib/channels/inbound";
 import { fetchInstagramSenderName } from "@/lib/instagram/oauth";
 import { rateLimit } from "@/lib/rateLimit";
+import { verifyMetaWebhookSignature } from "@/lib/webhookSignature";
 
 /** Verificación de webhook de Meta — mismo patrón que WhatsApp, token propio de Instagram. */
 export async function GET(req: NextRequest) {
@@ -23,7 +24,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
   }
 
-  const payload = await req.json();
+  const rawBody = await req.text();
+  if (!verifyMetaWebhookSignature(rawBody, req.headers.get("x-hub-signature-256"), process.env.INSTAGRAM_APP_SECRET)) {
+    return NextResponse.json({ ok: false, error: "invalid_signature" }, { status: 401 });
+  }
+  const payload = JSON.parse(rawBody);
 
   try {
     const entry = payload?.entry?.[0];
