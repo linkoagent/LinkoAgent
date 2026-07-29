@@ -35,6 +35,8 @@ export function EmbeddedSignupButton() {
       if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") return;
       try {
         const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        // eslint-disable-next-line no-console -- debug temporal para diagnosticar Embedded Signup en prod, sacar después
+        console.log("[embedded-signup] mensaje recibido de Meta:", data);
         if (data?.type === "WA_EMBEDDED_SIGNUP" && data?.data) {
           if (data.data.waba_id) sessionData.current.wabaId = data.data.waba_id;
           if (data.data.phone_number_id) sessionData.current.phoneNumberId = data.data.phone_number_id;
