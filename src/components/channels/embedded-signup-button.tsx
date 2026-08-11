@@ -69,6 +69,8 @@ export function EmbeddedSignupButton() {
       if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") return;
       try {
         const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        // eslint-disable-next-line no-console -- debug temporal para diagnosticar Embedded Signup en prod, sacar después
+        console.log("[embedded-signup] postMessage de Meta:", event.origin, data);
         if (data?.type !== "WA_EMBEDDED_SIGNUP") return;
 
         if (data.event === "CANCEL") {
@@ -121,6 +123,8 @@ export function EmbeddedSignupButton() {
 
     window.FB.login(
       (response) => {
+        // eslint-disable-next-line no-console -- debug temporal para diagnosticar Embedded Signup en prod, sacar después
+        console.log("[embedded-signup] respuesta de FB.login:", response);
         const code = response?.authResponse?.code;
         if (!code) {
           setStatus("idle");
