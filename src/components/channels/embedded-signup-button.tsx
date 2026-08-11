@@ -65,12 +65,18 @@ export function EmbeddedSignupButton() {
   useEffect(() => {
     if (!configured) return;
 
+    const ALLOWED_ORIGINS = [
+      "https://www.facebook.com",
+      "https://web.facebook.com",
+      "https://business.facebook.com",
+    ];
+
     function handleMessage(event: MessageEvent) {
-      if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") return;
+      // eslint-disable-next-line no-console -- debug temporal para diagnosticar Embedded Signup en prod, sacar después
+      console.log("[embedded-signup] mensaje recibido, origin:", event.origin, "data:", event.data);
+      if (!ALLOWED_ORIGINS.includes(event.origin)) return;
       try {
         const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        // eslint-disable-next-line no-console -- debug temporal para diagnosticar Embedded Signup en prod, sacar después
-        console.log("[embedded-signup] postMessage de Meta:", event.origin, data);
         if (data?.type !== "WA_EMBEDDED_SIGNUP") return;
 
         if (data.event === "CANCEL") {
