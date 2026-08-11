@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { completeEmbeddedSignup } from "@/lib/actions/channels";
 
@@ -22,11 +22,45 @@ const APP_ID = process.env.NEXT_PUBLIC_META_APP_ID;
 const CONFIG_ID = process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID;
 const configured = Boolean(APP_ID && CONFIG_ID);
 
+// Meta entrega el "code" (callback de FB.login) y el waba_id/phone_number_id (postMessage aparte)
+// de forma asincrónica e independiente — no hay garantía de cuál de los dos llega primero. Si
+// completamos apenas llega el code, casi siempre ganamos la carrera y nos quedamos sin sesión.
+const SESSION_DATA_GRACE_MS = 8000;
+
 export function EmbeddedSignupButton() {
   const [sdkReady, setSdkReady] = useState(false);
   const [status, setStatus] = useState<"idle" | "pending" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const sessionData = useRef<{ wabaId?: string; phoneNumberId?: string }>({});
+  const codeRef = useRef<string | null>(null);
+  const settledRef = useRef(false);
+  const graceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearGraceTimer = useCallback(() => {
+    if (graceTimer.current) {
+      clearTimeout(graceTimer.current);
+      graceTimer.current = null;
+    }
+  }, []);
+
+  const tryComplete = useCallback(() => {
+    if (settledRef.current) return;
+    const code = codeRef.current;
+    const { wabaId, phoneNumberId } = sessionData.current;
+    if (!code || !wabaId || !phoneNumberId) return;
+
+    settledRef.current = true;
+    clearGraceTimer();
+
+    completeEmbeddedSignup({ code, wabaId, phoneNumberId }).then((res) => {
+      if (res.ok) {
+        window.location.reload();
+        return;
+      }
+      setStatus("error");
+      setError(res.error ?? "No se pudo completar la conexión");
+    });
+  }, [clearGraceTimer]);
 
   useEffect(() => {
     if (!configured) return;
@@ -35,12 +69,18 @@ export function EmbeddedSignupButton() {
       if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") return;
       try {
         const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        // eslint-disable-next-line no-console -- debug temporal para diagnosticar Embedded Signup en prod, sacar después
-        console.log("[embedded-signup] mensaje recibido de Meta:", data);
-        if (data?.type === "WA_EMBEDDED_SIGNUP" && data?.data) {
-          if (data.data.waba_id) sessionData.current.wabaId = data.data.waba_id;
-          if (data.data.phone_number_id) sessionData.current.phoneNumberId = data.data.phone_number_id;
+        if (data?.type !== "WA_EMBEDDED_SIGNUP") return;
+
+        if (data.event === "CANCEL") {
+          settledRef.current = true;
+          clearGraceTimer();
+          setStatus("idle");
+          return;
         }
+
+        if (data.data?.waba_id) sessionData.current.wabaId = data.data.waba_id;
+        if (data.data?.phone_number_id) sessionData.current.phoneNumberId = data.data.phone_number_id;
+        tryComplete();
       } catch {
         // mensajes de Facebook ajenos al embedded signup; se ignoran
       }
@@ -65,13 +105,19 @@ export function EmbeddedSignupButton() {
       document.body.appendChild(script);
     }
 
-    return () => window.removeEventListener("message", handleMessage);
-  }, []);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      clearGraceTimer();
+    };
+  }, [tryComplete, clearGraceTimer]);
 
   function handleClick() {
     if (!window.FB) return;
     setStatus("pending");
     setError(null);
+    settledRef.current = false;
+    codeRef.current = null;
+    sessionData.current = {};
 
     window.FB.login(
       (response) => {
@@ -80,19 +126,18 @@ export function EmbeddedSignupButton() {
           setStatus("idle");
           return;
         }
+        codeRef.current = code;
 
-        completeEmbeddedSignup({
-          code,
-          wabaId: sessionData.current.wabaId,
-          phoneNumberId: sessionData.current.phoneNumberId,
-        }).then((res) => {
-          if (res.ok) {
-            window.location.reload();
-            return;
-          }
+        // El code llegó pero puede que el postMessage con waba_id/phone_number_id todavía no —
+        // le damos un margen antes de avisar que Meta no mandó esos datos.
+        graceTimer.current = setTimeout(() => {
+          if (settledRef.current) return;
+          settledRef.current = true;
           setStatus("error");
-          setError(res.error ?? "No se pudo completar la conexión");
-        });
+          setError("Meta no devolvió el WhatsApp Business Account o el número elegido. Probá de nuevo.");
+        }, SESSION_DATA_GRACE_MS);
+
+        tryComplete();
       },
       {
         config_id: CONFIG_ID,
