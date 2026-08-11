@@ -290,3 +290,79 @@ export async function processInboundChannelMessage({
 
   return { conversation, autoReplied: true as const, reply: result.content, handedOff: result.shouldHandoff };
 }
+
+/**
+ * Solo para WhatsApp coexistence: guarda mensajes que NO deben disparar una respuesta de la IA
+ * porque ya pasaron por otro lado — un mensaje que el negocio mandó a mano desde la WhatsApp
+ * Business App del celular (webhook field "smb_message_echoes"), o un mensaje viejo importado del
+ * historial al conectar (field "history"). A diferencia de processInboundChannelMessage, nunca
+ * llama al agente ni cuenta como uso del plan.
+ */
+export async function ingestPassiveWhatsAppMessage({
+  channel,
+  channelUserId,
+  sender,
+  text,
+  channelMessageId,
+  createdAt,
+}: {
+  channel: Channel;
+  channelUserId: string;
+  sender: "HUMAN" | "CUSTOMER";
+  text: string;
+  channelMessageId?: string;
+  createdAt?: Date;
+}) {
+  if (channelMessageId) {
+    const alreadyProcessed = await prisma.message.findFirst({
+      where: { channelMessageId, conversation: { channelId: channel.id } },
+      select: { id: true },
+    });
+    if (alreadyProcessed) return;
+  }
+
+  const customer = await prisma.customer.upsert({
+    where: {
+      companyId_channelType_channelUserId: {
+        companyId: channel.companyId,
+        channelType: channel.type,
+        channelUserId,
+      },
+    },
+    update: { lastContactAt: new Date() },
+    create: {
+      companyId: channel.companyId,
+      channelType: channel.type,
+      channelUserId,
+      phone: channelUserId,
+    },
+  });
+
+  let conversation = await prisma.conversation.findFirst({
+    where: {
+      companyId: channel.companyId,
+      customerId: customer.id,
+      channelId: channel.id,
+      status: { notIn: ["CLOSED", "RESOLVED"] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!conversation) {
+    conversation = await prisma.conversation.create({
+      data: { companyId: channel.companyId, channelId: channel.id, customerId: customer.id, status: "OPEN" },
+    });
+  }
+
+  await prisma.message.create({
+    data: {
+      conversationId: conversation.id,
+      sender,
+      content: text,
+      channelMessageId,
+      ...(createdAt ? { createdAt } : {}),
+    },
+  });
+
+  await prisma.conversation.update({ where: { id: conversation.id }, data: { lastMessageAt: createdAt ?? new Date() } });
+  await prisma.channel.update({ where: { id: channel.id }, data: { lastMessageAt: new Date() } });
+}

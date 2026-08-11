@@ -33,6 +33,7 @@ export function EmbeddedSignupButton() {
   const [error, setError] = useState<string | null>(null);
   const sessionData = useRef<{ wabaId?: string; phoneNumberId?: string }>({});
   const codeRef = useRef<string | null>(null);
+  const coexistenceRef = useRef(false);
   const settledRef = useRef(false);
   const graceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -47,12 +48,14 @@ export function EmbeddedSignupButton() {
     if (settledRef.current) return;
     const code = codeRef.current;
     const { wabaId, phoneNumberId } = sessionData.current;
-    if (!code || !wabaId || !phoneNumberId) return;
+    // En coexistence el postMessage nunca trae phoneNumberId (el número ya está registrado, no
+    // se elige) — el server lo resuelve solo. En el flujo estándar sí hace falta tenerlo ya.
+    if (!code || !wabaId || (!phoneNumberId && !coexistenceRef.current)) return;
 
     settledRef.current = true;
     clearGraceTimer();
 
-    completeEmbeddedSignup({ code, wabaId, phoneNumberId }).then((res) => {
+    completeEmbeddedSignup({ code, wabaId, phoneNumberId, coexistence: coexistenceRef.current }).then((res) => {
       if (res.ok) {
         window.location.reload();
         return;
@@ -153,7 +156,13 @@ export function EmbeddedSignupButton() {
         config_id: CONFIG_ID,
         response_type: "code",
         override_default_response_type: true,
-        extras: { sessionInfoVersion: "3" },
+        // "setup" es obligatorio para que Meta reconozca esto como un lanzamiento real del wizard
+        // de WhatsApp: sin él, el popup completaba un login genérico de Facebook (con code, pero
+        // sin jamás mostrar los pasos de elegir WABA/número ni mandar el postMessage
+        // WA_EMBEDDED_SIGNUP) — la causa real de "Meta no devolvió el WhatsApp Business Account".
+        // featureType vacío = flujo estándar; queda listo para "whatsapp_business_app_onboarding"
+        // el día que haya un número elegible para coexistence.
+        extras: { setup: {}, featureType: "", sessionInfoVersion: "3" },
       }
     );
   }

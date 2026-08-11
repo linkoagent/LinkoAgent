@@ -10,6 +10,8 @@ import {
   exchangeEmbeddedSignupCode,
   subscribeAppToWaba,
   fetchPhoneNumberDisplayName,
+  fetchFirstWabaPhoneNumberId,
+  triggerSmbAppDataSync,
 } from "@/lib/whatsapp/embeddedSignup";
 
 export interface ConnectWhatsAppResult {
@@ -88,21 +90,36 @@ export interface EmbeddedSignupResult {
  * access token de negocio, suscribe nuestro webhook al WABA elegido, y guarda el canal como
  * si lo hubieras cargado a mano en /channels. wabaId/phoneNumberId vienen de los mensajes
  * postMessage que manda el popup de Meta durante el flujo (no del code en sí).
+ *
+ * Caso coexistence (número que ya estaba activo en la WhatsApp Business App del celular): Meta
+ * no manda phoneNumberId en el postMessage porque el número no se "elige", ya está registrado —
+ * hay que resolverlo consultando el WABA. Además dispara la sincronización de contactos/historial,
+ * y deja marcado metadata.coexistence para que el webhook sepa reflejar smb_message_echoes.
  */
 export async function completeEmbeddedSignup(params: {
   code: string;
   wabaId?: string;
   phoneNumberId?: string;
+  coexistence?: boolean;
 }): Promise<EmbeddedSignupResult> {
   const ctx = await requireRole(["COMPANY_ADMIN", "SUPER_ADMIN"]);
-  const { code, wabaId, phoneNumberId } = params;
+  const { code, wabaId, coexistence } = params;
+  let { phoneNumberId } = params;
 
-  if (!wabaId || !phoneNumberId) {
+  if (!wabaId || (!phoneNumberId && !coexistence)) {
     return { ok: false, error: "Meta no devolvió el WhatsApp Business Account o el número elegido. Probá de nuevo." };
   }
 
   try {
     const accessToken = await exchangeEmbeddedSignupCode(code);
+
+    if (!phoneNumberId && coexistence) {
+      phoneNumberId = (await fetchFirstWabaPhoneNumberId(wabaId, accessToken)) ?? undefined;
+    }
+    if (!phoneNumberId) {
+      return { ok: false, error: "Meta no devolvió el WhatsApp Business Account o el número elegido. Probá de nuevo." };
+    }
+
     await subscribeAppToWaba(wabaId, accessToken);
     const accountName = await fetchPhoneNumberDisplayName(phoneNumberId, accessToken);
 
@@ -117,12 +134,24 @@ export async function completeEmbeddedSignup(params: {
       status: "CONNECTED" as const,
       connectedAt: new Date(),
       lastError: null,
+      ...(coexistence ? { metadata: { coexistence: true } } : {}),
     };
 
     if (existing) {
       await prisma.channel.update({ where: { id: existing.id }, data });
     } else {
       await prisma.channel.create({ data });
+    }
+
+    if (coexistence) {
+      // No debe tumbar la conexión ya hecha: si falla el pedido de sync, el canal queda igual
+      // conectado y funcionando para mensajes nuevos, solo sin el historial viejo importado.
+      try {
+        await triggerSmbAppDataSync(phoneNumberId, accessToken, "smb_app_state_sync");
+        await triggerSmbAppDataSync(phoneNumberId, accessToken, "history");
+      } catch (err) {
+        console.error("[embedded-signup] Error pidiendo sincronización de coexistence:", err);
+      }
     }
 
     revalidatePath("/channels");

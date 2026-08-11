@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { processInboundChannelMessage } from "@/lib/channels/inbound";
+import { processInboundChannelMessage, ingestPassiveWhatsAppMessage } from "@/lib/channels/inbound";
 import { rateLimit } from "@/lib/rateLimit";
 import { verifyMetaWebhookSignature } from "@/lib/webhookSignature";
+
+interface WhatsAppRawMessage {
+  id?: string;
+  from?: string;
+  to?: string;
+  type?: string;
+  timestamp?: string;
+  text?: { body?: string };
+  [key: string]: unknown;
+}
+
+function extractText(msg: WhatsAppRawMessage): string {
+  if (msg.text?.body) return msg.text.body;
+  const byType = msg.type ? (msg[msg.type] as { body?: string } | undefined) : undefined;
+  return byType?.body ?? "[mensaje no soportado en el MVP]";
+}
 
 /**
  * Verificación de webhook de Meta (se configura una sola vez en la app de Meta,
@@ -50,8 +66,51 @@ export async function POST(req: NextRequest) {
       data: { provider: "whatsapp", payload, companyId: channel?.companyId, channelId: channel?.id },
     });
 
-    if (!channel || !message) {
-      // Sin canal registrado o evento que no es un mensaje (ej. status de entrega): se ignora.
+    if (!channel) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // Coexistence: mensajes mandados a mano desde la WhatsApp Business App del celular — se
+    // reflejan en el Inbox como HUMAN, sin pasar por la IA (ya fueron respondidos).
+    const echoes = value?.message_echoes as WhatsAppRawMessage[] | undefined;
+    if (Array.isArray(echoes)) {
+      for (const echo of echoes) {
+        if (!echo.to) continue;
+        await ingestPassiveWhatsAppMessage({
+          channel,
+          channelUserId: echo.to,
+          sender: "HUMAN",
+          text: extractText(echo),
+          channelMessageId: echo.id,
+        });
+      }
+    }
+
+    // Coexistence: import del historial previo a conectar (una sola vez, dentro de la ventana de
+    // 24hs desde que se pidió con triggerSmbAppDataSync). Cada thread es una conversación con un
+    // cliente; el remitente se infiere comparando con el número del negocio.
+    const historyEntries = value?.history as Array<{ threads?: Array<{ id?: string; messages?: WhatsAppRawMessage[] }> }> | undefined;
+    if (Array.isArray(historyEntries)) {
+      const businessPhone: string | undefined = value?.metadata?.display_phone_number;
+      for (const entry of historyEntries) {
+        for (const thread of entry.threads ?? []) {
+          if (!thread.id) continue;
+          for (const msg of thread.messages ?? []) {
+            await ingestPassiveWhatsAppMessage({
+              channel,
+              channelUserId: thread.id,
+              sender: msg.from === businessPhone ? "HUMAN" : "CUSTOMER",
+              text: extractText(msg),
+              channelMessageId: msg.id,
+              createdAt: msg.timestamp ? new Date(Number(msg.timestamp) * 1000) : undefined,
+            });
+          }
+        }
+      }
+    }
+
+    if (!message) {
+      // Evento que no es un mensaje nuevo (ej. status de entrega, o ya cubierto arriba): se ignora.
       return NextResponse.json({ ok: true });
     }
 

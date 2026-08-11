@@ -49,3 +49,39 @@ export async function fetchPhoneNumberDisplayName(phoneNumberId: string, accessT
   const data = await res.json();
   return (data.verified_name as string | undefined) ?? (data.display_phone_number as string | undefined) ?? null;
 }
+
+/**
+ * Solo se usa en el flujo de coexistence: el postMessage de "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING"
+ * trae el waba_id pero NO el phone_number_id (el número ya está registrado de antes, no se elige
+ * en el popup) — hay que resolverlo consultando los números asociados a ese WABA.
+ */
+export async function fetchFirstWabaPhoneNumberId(wabaId: string, accessToken: string): Promise<string | null> {
+  const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${wabaId}/phone_numbers`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const first = data?.data?.[0];
+  return (first?.id as string | undefined) ?? null;
+}
+
+/**
+ * Dispara la sincronización de contactos/historial de una cuenta coexistence recién conectada.
+ * Es asincrónica del lado de Meta: la respuesta real llega después por webhook (fields
+ * "smb_app_state_sync" y "history"), esto solo la solicita. Hay una ventana de 24hs desde que se
+ * conecta la cuenta para pedirla, si no Meta la desconecta.
+ */
+export async function triggerSmbAppDataSync(
+  phoneNumberId: string,
+  accessToken: string,
+  syncType: "smb_app_state_sync" | "history"
+): Promise<void> {
+  const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${phoneNumberId}/smb_app_data`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ messaging_product: "whatsapp", sync_type: syncType }),
+  });
+  if (!res.ok) {
+    throw new Error(`No se pudo pedir la sincronización "${syncType}" (${res.status}): ${await res.text()}`);
+  }
+}
